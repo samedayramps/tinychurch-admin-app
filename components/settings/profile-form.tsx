@@ -98,7 +98,7 @@ export function ProfileForm({ profile }: ProfileFormProps) {
     } catch (error) {
       toast({
         title: "Error",
-        description: error.message || "Something went wrong. Please try again.",
+        description: error instanceof Error ? error.message : "Something went wrong. Please try again.",
         variant: "destructive",
       })
     }
@@ -109,7 +109,7 @@ export function ProfileForm({ profile }: ProfileFormProps) {
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
         <AvatarUpload
           uid={profile.id}
-          url={profile.avatar_url}
+          url={profile.avatar_url || null}
           onUpload={async (url) => {
             try {
               const formData = new FormData()
@@ -134,7 +134,7 @@ export function ProfileForm({ profile }: ProfileFormProps) {
               console.error('Avatar update error:', error)
               toast({
                 title: "Error",
-                description: "Failed to update avatar",
+                description: error instanceof Error ? error.message : "Failed to update avatar",
                 variant: "destructive",
               })
             }

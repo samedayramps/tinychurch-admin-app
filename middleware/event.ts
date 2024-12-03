@@ -59,7 +59,7 @@ export async function eventAccessMiddleware(
       }
       break
     case 'private':
-      if (!membership?.role === 'admin' && event.organizer_id !== user.id) {
+      if (membership?.role !== 'admin' && event.organizer_id !== user.id) {
         return NextResponse.redirect(new URL('/', request.url))
       }
       break

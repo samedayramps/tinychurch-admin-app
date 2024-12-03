@@ -1,18 +1,27 @@
 'use server'
 
 import { cookies } from 'next/headers'
-import { createClient } from '@/utils/supabase/server'
-import { getUserProfile } from '@/lib/dal/auth'
+import { getCurrentUser } from '@/lib/dal/auth'
+import { 
+  verifyImpersonationPermissions, 
+  logImpersonationEvent 
+} from '@/lib/dal/impersonation'
 import { redirect } from 'next/navigation'
 
 export async function startImpersonation(userId: string) {
-  const profile = await getUserProfile()
-  if (!profile?.is_superadmin) {
+  const profile = await getCurrentUser()
+  if (!profile?.id || !profile?.email) {
+    throw new Error('Unauthorized')
+  }
+  
+  const hasPermission = await verifyImpersonationPermissions(profile.id)
+  if (!hasPermission) {
     throw new Error('Unauthorized')
   }
   
   // Store the impersonation in a cookie
-  cookies().set('impersonating_user_id', userId, {
+  const cookieStore = await cookies()
+  cookieStore.set('impersonating_user_id', userId, {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
     sameSite: 'lax',
@@ -20,37 +29,33 @@ export async function startImpersonation(userId: string) {
   })
   
   // Log the impersonation event
-  const supabase = await createClient()
-  await supabase.from('audit_logs').insert({
-    category: 'auth',
+  await logImpersonationEvent({
     action: 'impersonation_start',
-    actor_id: profile.id,
-    target_id: userId,
-    description: `Superadmin ${profile.email} started impersonating user ${userId}`,
-    severity: 'notice'
+    actorId: profile.id,
+    actorEmail: profile.email,
+    targetId: userId
   })
   
   redirect('/dashboard')
 }
 
 export async function stopImpersonation() {
-  const cookieStore = cookies()
+  const cookieStore = await cookies()
   const impersonatingId = cookieStore.get('impersonating_user_id')?.value
   
   if (impersonatingId) {
     cookieStore.delete('impersonating_user_id')
     
     // Log the end of impersonation
-    const profile = await getUserProfile()
-    const supabase = await createClient()
-    await supabase.from('audit_logs').insert({
-      category: 'auth',
-      action: 'impersonation_end',
-      actor_id: profile?.id,
-      target_id: impersonatingId,
-      description: `Superadmin ${profile?.email} stopped impersonating user ${impersonatingId}`,
-      severity: 'notice'
-    })
+    const profile = await getCurrentUser()
+    if (profile?.id && profile?.email) {
+      await logImpersonationEvent({
+        action: 'impersonation_end',
+        actorId: profile.id,
+        actorEmail: profile.email,
+        targetId: impersonatingId
+      })
+    }
   }
   
   redirect('/superadmin')

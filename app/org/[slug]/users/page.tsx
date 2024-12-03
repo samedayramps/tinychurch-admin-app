@@ -4,12 +4,14 @@ import { Button } from '@/components/ui/button'
 import Link from 'next/link'
 import { PlusIcon } from 'lucide-react'
 
-export default async function OrganizationUsersPage({
-  params
-}: {
-  params: { slug: string }
-}) {
+type Props = {
+  params: Promise<{ slug: string }>
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>
+}
+
+export default async function OrganizationUsersPage(props: Props) {
   const supabase = await createClient()
+  const params = await props.params
   
   const { data: users } = await supabase
     .from('organization_members')
