@@ -86,4 +86,142 @@ export const logImpersonationEvent = async (data: {
   })
   
   return !error
-} 
+}
+
+export async function startImpersonation(targetUserId: string) {
+  const supabase = await createClient(true) // Use admin client
+  
+  console.log('Starting impersonation process:', { targetUserId })
+  
+  // Get current user for logging
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) {
+    console.error('No authenticated user found')
+    throw new Error('Authentication required')
+  }
+  
+  // Call RPC function to start impersonation
+  console.log('Calling manage_impersonation RPC:', { 
+    action: 'start',
+    targetUserId,
+    currentUser: user.id 
+  })
+  
+  const { data, error } = await supabase.rpc('manage_impersonation', {
+    target_user_id: targetUserId,
+    action: 'start'
+  })
+  
+  if (error) {
+    console.error('Failed to start impersonation:', error)
+    throw error
+  }
+  
+  console.log('Impersonation metadata set:', data)
+  
+  // Refresh session to get new metadata
+  console.log('Refreshing session...')
+  const { data: sessionData, error: sessionError } = await supabase.auth.refreshSession()
+  
+  if (sessionError) {
+    console.error('Failed to refresh session:', sessionError)
+    throw sessionError
+  }
+  
+  console.log('Session refreshed with new metadata:', {
+    impersonation: sessionData.session?.user.app_metadata.impersonation
+  })
+  
+  // Log impersonation event
+  await logImpersonationEvent({
+    action: 'impersonation_start',
+    actorId: user.id,
+    actorEmail: user.email || '',
+    targetId: targetUserId
+  })
+  
+  console.log('Impersonation started successfully')
+  
+  return data
+}
+
+export async function stopImpersonation() {
+  const supabase = await createClient(true)
+  
+  console.log('Stopping impersonation...')
+  
+  // Get current impersonation state before stopping
+  const { data: { session } } = await supabase.auth.getSession()
+  const impersonationData = session?.user?.app_metadata?.impersonation
+  
+  if (!impersonationData) {
+    console.log('No active impersonation found')
+    return
+  }
+  
+  console.log('Current impersonation state:', impersonationData)
+  
+  // Call RPC function to stop impersonation
+  console.log('Calling manage_impersonation RPC:', { action: 'stop' })
+  
+  const { error } = await supabase.rpc('manage_impersonation', {
+    action: 'stop'
+  })
+  
+  if (error) {
+    console.error('Failed to stop impersonation:', error)
+    throw error
+  }
+  
+  // Refresh session to clear metadata
+  console.log('Refreshing session...')
+  const { error: sessionError } = await supabase.auth.refreshSession()
+  
+  if (sessionError) {
+    console.error('Failed to refresh session:', sessionError)
+    throw sessionError
+  }
+  
+  // Log end of impersonation
+  await logImpersonationEvent({
+    action: 'impersonation_end',
+    actorId: session.user.id,
+    actorEmail: session.user.email || '',
+    targetId: impersonationData.impersonating
+  })
+  
+  console.log('Impersonation stopped successfully')
+}
+
+export const getUserProfile = cache(async (userId?: string) => {
+  if (!userId) {
+    // If no userId provided, fall back to current user
+    const user = await getCurrentUser()
+    if (!user) return null
+    userId = user.id
+  }
+  
+  const supabase = await createClient()
+  
+  // Get profile data
+  const { data: profile, error } = await supabase
+    .from('profiles')
+    .select('*')
+    .eq('id', userId)
+    .single()
+    .then(result => ({
+      ...result,
+      next: { tags: [`profile-${userId}`, 'profile'] }
+    }))
+    
+  if (error) return null
+  
+  // Check impersonation status
+  const { data: { session } } = await supabase.auth.getSession()
+  const isImpersonating = !!session?.user?.app_metadata?.impersonation
+  
+  return {
+    ...profile,
+    is_impersonating: isImpersonating
+  }
+}) 

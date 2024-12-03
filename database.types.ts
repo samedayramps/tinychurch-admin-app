@@ -460,17 +460,48 @@ export type Database = {
         }
         Returns: number
       }
-      log_audit_event: {
+      log_audit_event:
+        | {
+            Args: {
+              p_category: Database["public"]["Enums"]["audit_category"]
+              p_action: string
+              p_organization_id: string
+              p_actor_id: string
+              p_description: string
+              p_metadata?: Json
+              p_severity?: Database["public"]["Enums"]["audit_severity"]
+            }
+            Returns: string
+          }
+        | {
+            Args: {
+              p_category: string
+              p_action: string
+              p_actor_id: string
+              p_description: string
+              p_metadata?: Json
+              p_severity?: string
+            }
+            Returns: string
+          }
+        | {
+            Args: {
+              p_category: string
+              p_action: string
+              p_organization_id: string
+              p_actor_id: string
+              p_description: string
+              p_metadata?: Json
+              p_severity?: string
+            }
+            Returns: string
+          }
+      manage_impersonation: {
         Args: {
-          p_category: Database["public"]["Enums"]["audit_category"]
-          p_action: string
-          p_organization_id: string
-          p_actor_id: string
-          p_description: string
-          p_metadata?: Json
-          p_severity?: Database["public"]["Enums"]["audit_severity"]
+          target_user_id: string
+          action: string
         }
-        Returns: string
+        Returns: Json
       }
       set_limit: {
         Args: {

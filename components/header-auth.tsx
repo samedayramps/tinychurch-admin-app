@@ -51,13 +51,6 @@ export function HeaderAuth({ profile, membership }: HeaderAuthProps) {
 
   return (
     <div className="flex items-center gap-4">
-      {/* Show impersonation banner if applicable */}
-      {profile.impersonated && (
-        <div className="text-sm text-yellow-600 bg-yellow-100 px-2 py-1 rounded">
-          Impersonating User
-        </div>
-      )}
-
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button variant="ghost" className="relative h-8 w-8 rounded-full">

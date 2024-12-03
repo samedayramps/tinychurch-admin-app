@@ -7,7 +7,8 @@ import {
   SidebarContent,
   SidebarMenu,
   SidebarMenuItem,
-  SidebarMenuButton
+  SidebarMenuButton,
+  SidebarFooter
 } from '@/components/ui/sidebar'
 import { 
   HomeIcon, 
@@ -20,6 +21,51 @@ import {
 import { usePathname } from 'next/navigation'
 import Link from 'next/link'
 import type { Profile } from '@/lib/types/auth'
+import { ImpersonationUserList } from '@/components/impersonation/user-list'
+
+interface SuperAdminSidebarProps {
+  profile: Profile
+}
+
+export function SuperAdminSidebar({ profile }: SuperAdminSidebarProps) {
+  const pathname = usePathname()
+  
+  return (
+    <SidebarProvider>
+      <Sidebar className="border-0">
+        <SidebarHeader className="px-6 py-4">
+          <Link href="/superadmin/dashboard" className="flex items-center gap-2">
+            <h2 className="text-lg font-semibold">Admin Console</h2>
+          </Link>
+        </SidebarHeader>
+        
+        <SidebarContent>
+          <SidebarMenu>
+            {menuItems.map((item) => (
+              <SidebarMenuItem key={item.href}>
+                <SidebarMenuButton
+                  asChild
+                  isActive={pathname === item.href}
+                  className="px-6"
+                >
+                  <Link href={item.href}>
+                    <item.icon className="w-4 h-4" />
+                    <span>{item.title}</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            ))}
+          </SidebarMenu>
+        </SidebarContent>
+        
+        <SidebarFooter>
+          {/* Impersonation controls in footer */}
+          <ImpersonationUserList />
+        </SidebarFooter>
+      </Sidebar>
+    </SidebarProvider>
+  )
+}
 
 const menuItems = [
   {
@@ -52,38 +98,4 @@ const menuItems = [
     href: '/superadmin/settings',
     icon: SettingsIcon
   }
-]
-
-export function SuperAdminSidebar() {
-  const pathname = usePathname()
-  
-  return (
-    <SidebarProvider>
-      <Sidebar className="border-0">
-        <SidebarHeader className="px-6 py-4">
-          <Link href="/superadmin/dashboard" className="flex items-center gap-2">
-            <h2 className="text-lg font-semibold">Admin Console</h2>
-          </Link>
-        </SidebarHeader>
-        <SidebarContent>
-          <SidebarMenu>
-            {menuItems.map((item) => (
-              <SidebarMenuItem key={item.href}>
-                <SidebarMenuButton
-                  asChild
-                  isActive={pathname === item.href}
-                  className="px-6"
-                >
-                  <Link href={item.href}>
-                    <item.icon className="w-4 h-4" />
-                    <span>{item.title}</span>
-                  </Link>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-            ))}
-          </SidebarMenu>
-        </SidebarContent>
-      </Sidebar>
-    </SidebarProvider>
-  )
-} 
+] 

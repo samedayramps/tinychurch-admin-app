@@ -14,6 +14,10 @@ export const getCurrentUser = cache(async () => {
     .select('email, is_superadmin')
     .eq('id', user.id)
     .single()
+    .then(result => ({
+      ...result,
+      next: { tags: [`user-${user.id}`, 'user'] }
+    }))
     
   if (!profile) return null
   
@@ -24,16 +28,24 @@ export const getCurrentUser = cache(async () => {
   }
 })
 
-export const getUserProfile = cache(async () => {
-  const user = await getCurrentUser()
-  if (!user) return null
+export const getUserProfile = cache(async (userId?: string) => {
+  if (!userId) {
+    // If no userId provided, fall back to current user
+    const user = await getCurrentUser()
+    if (!user) return null
+    userId = user.id
+  }
   
   const supabase = await createClient()
   const { data, error } = await supabase
     .from('profiles')
     .select('*')
-    .eq('id', user.id)
+    .eq('id', userId)
     .single()
+    .then(result => ({
+      ...result,
+      next: { tags: [`profile-${userId}`, 'profile'] }
+    }))
     
   if (error) return null
   return data
@@ -52,16 +64,27 @@ export const getOrganizationMembership = cache(async () => {
     `)
     .eq('user_id', user.id)
     .single()
+    .then(result => ({
+      ...result,
+      next: { 
+        tags: [
+          `org-member-${user.id}`, 
+          'organization-member',
+          `organization-${result.data?.organizations?.id}`
+        ] 
+      }
+    }))
     
   if (error) return null
   return data
 })
 
 // Re-export all DAL functions for convenient imports
-export * from './auth'
 export * from './organizations'
+export * from './settings'
 export * from './profiles'
-export * from './audit'
+export * from './auth'
+export { getAuditLogs } from './audit'
 export * from './events'
 export * from './ministries'
 export * from './attendance'

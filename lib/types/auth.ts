@@ -1,14 +1,17 @@
+import type { Database } from '@/database.types'
+
 export type UserRole = 'superadmin' | 'admin' | 'staff' | 'ministry_leader' | 'member' | 'visitor'
 
 export interface Profile {
   id: string
-  email?: string
-  full_name?: string
-  first_name?: string
-  last_name?: string
-  avatar_url?: string | null
+  email: string
+  full_name: string | null
+  first_name: string | null
+  last_name: string | null
+  avatar_url: string | null
+  created_at: string | null
+  updated_at: string | null
   is_superadmin?: boolean
-  impersonated?: boolean
   alternative_email?: string | null
   phone?: string | null
   language?: string
@@ -18,6 +21,14 @@ export interface Profile {
     sms: boolean
     push: boolean
   }
+  organization_members?: Array<{
+    organizations: {
+      id: string
+      name: string
+    }
+    role: string
+  }>
+  impersonated?: boolean
 }
 
 export interface OrganizationMember {
@@ -36,4 +47,13 @@ export interface Organization {
   name: string
   slug: string
   settings: Record<string, any>
+}
+
+export interface ImpersonationStatus {
+  isImpersonating: boolean
+  impersonatedUserId: string | null
+}
+
+export interface ImpersonationError {
+  error: string
 } 

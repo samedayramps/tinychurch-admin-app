@@ -2,6 +2,8 @@ import { GeistSans } from 'geist/font/sans'
 import { ThemeProvider } from '@/components/theme-provider'
 import './globals.css'
 import { Toaster } from "@/components/ui/toaster"
+import { ImpersonationProvider } from '@/lib/contexts/impersonation-context'
+import { ImpersonationBorder } from '@/components/impersonation/border'
 
 export const metadata = {
   title: 'TinyChurch Admin',
@@ -22,7 +24,12 @@ export default async function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          {children}
+          <ImpersonationProvider>
+            <ImpersonationBorder />
+            <main className="min-h-screen">
+              {children}
+            </main>
+          </ImpersonationProvider>
           <Toaster />
         </ThemeProvider>
       </body>

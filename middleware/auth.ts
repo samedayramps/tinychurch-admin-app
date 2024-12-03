@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 import type { SupabaseClient } from '@supabase/supabase-js'
+import { getRedirectPath } from '@/lib/auth/redirects'
+import { getUserProfile } from '@/lib/dal'
 
 export async function authMiddleware(
   request: NextRequest,
@@ -9,20 +11,20 @@ export async function authMiddleware(
   const {
     data: { user },
   } = await supabase.auth.getUser()
+  const url = request.nextUrl.clone()
 
-  if (!user) {
-    return NextResponse.redirect(new URL('/auth/signin', request.url))
+  // Define public paths
+  const publicPaths = ['/sign-in', '/sign-up', '/forgot-password', '/auth/callback']
+  const isPublicPath = publicPaths.some(path => url.pathname.startsWith(path))
+
+  if (!user && !isPublicPath) {
+    return NextResponse.redirect(new URL('/sign-in', request.url))
   }
 
-  // Check if user is active
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('is_active')
-    .eq('id', user.id)
-    .single()
-
-  if (!profile?.is_active) {
-    return NextResponse.redirect(new URL('/account-suspended', request.url))
+  if (user && isPublicPath) {
+    const profile = await getUserProfile(user.id)
+    const redirectPath = await getRedirectPath(profile, true)
+    return NextResponse.redirect(new URL(redirectPath, request.url))
   }
 
   return NextResponse.next()

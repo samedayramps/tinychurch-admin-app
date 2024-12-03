@@ -1,21 +1,39 @@
 import { createClient } from '@/utils/supabase/server'
 import { cache } from 'react'
+import { unstable_cache } from 'next/cache'
 import type { Profile } from '@/lib/types/auth'
 
-export const getImpersonatedUser = cache(async (userId: string) => {
-  const supabase = await createClient()
-  const { data, error } = await supabase
-    .from('profiles')
-    .select('*')
-    .eq('id', userId)
-    .single()
-    
-  if (error) return null
-  return {
-    ...data,
-    impersonated: true
-  } as Profile
-})
+export const getImpersonatedUser = unstable_cache(
+  async (userId: string) => {
+    const supabase = await createClient()
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', userId)
+      .single()
+      .then(result => ({
+        ...result,
+        next: { 
+          tags: [
+            `profile-${userId}`, 
+            'profile',
+            'impersonation'
+          ] 
+        }
+      }))
+      
+    if (error) return null
+    return {
+      ...data,
+      impersonated: true
+    } as Profile
+  },
+  ['impersonated-user'],
+  {
+    revalidate: 60, // Cache for 1 minute
+    tags: ['impersonation']
+  }
+)
 
 export const verifyImpersonationPermissions = cache(async (userId: string) => {
   const supabase = await createClient()
