@@ -1,11 +1,11 @@
 'use server'
 
 import { cookies } from 'next/headers'
-import { getCurrentUser } from '@/lib/dal/auth'
 import { 
+  getCurrentUser,
   verifyImpersonationPermissions, 
   logImpersonationEvent 
-} from '@/lib/dal/impersonation'
+} from '@/lib/dal/auth'
 import { redirect } from 'next/navigation'
 
 export async function startImpersonation(userId: string) {
