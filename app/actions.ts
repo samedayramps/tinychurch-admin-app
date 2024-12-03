@@ -53,7 +53,16 @@ export const signInAction = async (formData: FormData) => {
     return encodedRedirect("error", "/sign-in", error.message);
   }
 
-  return redirect("/protected");
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('is_superadmin')
+    .single();
+
+  if (profile?.is_superadmin) {
+    return redirect("/superadmin/dashboard");
+  }
+
+  return redirect("/dashboard");
 };
 
 export const forgotPasswordAction = async (formData: FormData) => {
@@ -67,7 +76,7 @@ export const forgotPasswordAction = async (formData: FormData) => {
   }
 
   const { error } = await supabase.auth.resetPasswordForEmail(email, {
-    redirectTo: `${origin}/auth/callback?redirect_to=/protected/reset-password`,
+    redirectTo: `${origin}/auth/callback?redirect_to=/(auth-pages)/reset-password`,
   });
 
   if (error) {
