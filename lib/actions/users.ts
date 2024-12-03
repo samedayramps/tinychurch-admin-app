@@ -324,4 +324,4 @@ export async function inviteUserAction(data: {
   })
 
   revalidatePath('/superadmin/users')
-} 
+}  
