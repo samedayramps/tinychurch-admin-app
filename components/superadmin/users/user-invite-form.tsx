@@ -24,7 +24,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { getAllOrganizations } from '@/lib/dal/organizations'
+import { getAllOrganizations } from '@/lib/dal/repositories/organization'
 import { type Database } from '@/database.types'
 
 type UserRole = Database['public']['Enums']['user_role']

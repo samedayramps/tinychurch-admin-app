@@ -1,6 +1,6 @@
 import { DashboardMetrics } from '@/components/admin/dashboard/metrics'
 import { RecentActivity } from '@/components/admin/dashboard/recent-activity'
-import { getOrganizationStats } from '@/lib/dal/organizations'
+import { getOrganizationStats } from '@/lib/dal/repositories/organization'
 
 export default async function DashboardPage() {
   const stats = await getOrganizationStats()

@@ -27,6 +27,23 @@ export async function startImpersonation(targetUserId: string) {
       throw new Error('Authentication required')
     }
 
+    // Get target user's organization for context
+    const { data: targetUser } = await supabase
+      .from('profiles')
+      .select(`
+        *,
+        organization_members!inner (
+          organization_id
+        )
+      `)
+      .eq('id', targetUserId)
+      .single()
+
+    const organizationId = targetUser?.organization_members?.[0]?.organization_id
+    if (!organizationId) {
+      throw new Error('Target user has no organization')
+    }
+
     // Verify superadmin status
     const { data: profile, error: profileError } = await supabase
       .from('profiles')
@@ -81,13 +98,14 @@ export async function startImpersonation(targetUserId: string) {
       path: '/'
     })
 
-    // Log the event
+    // Log the event with organization context
     console.log('📋 Logging impersonation event...')
     await logImpersonationEvent({
       action: 'impersonation_start',
       actorId: user.id,
       actorEmail: profile.email || user.email || '',
-      targetId: targetUserId
+      targetId: targetUserId,
+      organizationId: organizationId
     })
 
     // Force refresh session
@@ -122,10 +140,27 @@ export async function stopImpersonation() {
     const impersonatingId = cookieStore.get('impersonating_user_id')?.value
     
     if (impersonatingId) {
-      // Get current user for logging
+      // Get current user and target user's organization
       const { data: { user }, error: userError } = await supabase.auth.getUser()
       if (!user || userError) {
         throw new Error('Failed to get user')
+      }
+
+      // Get target user's organization for context
+      const { data: targetUser } = await supabase
+        .from('profiles')
+        .select(`
+          *,
+          organization_members!inner (
+            organization_id
+          )
+        `)
+        .eq('id', impersonatingId)
+        .single()
+
+      const organizationId = targetUser?.organization_members?.[0]?.organization_id
+      if (!organizationId) {
+        throw new Error('Target user has no organization')
       }
 
       // Get profile for logging
@@ -152,12 +187,13 @@ export async function stopImpersonation() {
       // Clear cookie
       cookieStore.delete('impersonating_user_id')
 
-      // Log the event
+      // Log the event with organization context
       await logImpersonationEvent({
         action: 'impersonation_end',
         actorId: user.id,
         actorEmail: profile?.email || user.email || '',
-        targetId: impersonatingId
+        targetId: impersonatingId,
+        organizationId: organizationId
       })
 
       // Revalidate all paths immediately

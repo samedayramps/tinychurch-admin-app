@@ -105,10 +105,10 @@ export async function createInviteAuditLog(
   await createAuditLog({
     category: 'security',
     action: 'user.invite',
-    organizationId: data.organization_id,
-    actorId: currentUser.id,
-    targetType: 'user',
-    targetId: targetUserId,
+    organization_id: data.organization_id,
+    actor_id: currentUser.id,
+    target_type: 'user',
+    target_id: targetUserId,
     description: `User ${data.email} was invited`,
     metadata: {
       ...data,

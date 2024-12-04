@@ -2,7 +2,6 @@
 
 import { createClient } from '@/utils/supabase/server'
 import { revalidatePath } from 'next/cache'
-import { createAuditLog } from '@/lib/dal/audit-extended'
 import { getCurrentUser } from '@/lib/dal'
 import { type Database } from '@/database.types'
 
@@ -95,19 +94,6 @@ export async function updateUserAction(userId: string, data: {
     if (newMembershipError) throw newMembershipError
   }
 
-  // Create audit log
-  await createAuditLog({
-    category: 'security',
-    action: 'user.update',
-    organizationId: data.organization_id,
-    actorId: currentUser.id,
-    targetType: 'user',
-    targetId: userId,
-    description: `User ${data.email} was updated`,
-    metadata: data,
-    severity: 'notice'
-  })
-
   revalidatePath('/superadmin/users')
   revalidatePath(`/superadmin/users/${userId}`)
 }
@@ -170,22 +156,6 @@ export async function deleteUserAction(userId: string) {
   
   if (authError) throw authError
 
-  // Create audit log
-  await createAuditLog({
-    category: 'security',
-    action: 'user.delete',
-    organizationId: user.organization_members?.[0]?.organization_id || 'system',
-    actorId: currentUser.id,
-    targetType: 'user',
-    targetId: userId,
-    description: `User ${user.email} was deleted`,
-    metadata: {
-      deleted_by: currentUser.email,
-      deleted_user: user.email,
-      deleted_at: now
-    },
-    severity: 'alert'
-  })
 
   revalidatePath('/superadmin/users')
 }
@@ -222,19 +192,6 @@ export async function createUserAction(data: {
     })
     
   if (profileError) throw profileError
-
-  // Create audit log
-  await createAuditLog({
-    category: 'security',
-    action: 'user.create',
-    organizationId: 'system',
-    actorId: currentUser?.id || 'system',
-    targetType: 'user',
-    targetId: authUser.user.id,
-    description: `New user ${data.email} was created`,
-    metadata: data,
-    severity: 'notice'
-  })
 
   revalidatePath('/superadmin/users')
 }
@@ -307,21 +264,6 @@ export async function inviteUserAction(data: {
 
   if (membershipError) throw membershipError
 
-  // Create audit log
-  await createAuditLog({
-    category: 'security',
-    action: 'user.invite',
-    organizationId: data.organization_id,
-    actorId: currentUser.id,
-    targetType: 'user',
-    targetId: authUser.user.id,
-    description: `User ${data.email} was invited`,
-    metadata: {
-      ...data,
-      invited_by: currentUser.email
-    },
-    severity: 'notice'
-  })
 
   revalidatePath('/superadmin/users')
 }  

@@ -2,14 +2,13 @@ import { createClient } from '@/utils/supabase/server'
 import { UserForm } from '@/components/superadmin/users/user-form'
 import { notFound } from 'next/navigation'
 
-type Props = {
+interface PageProps {
   params: Promise<{ id: string }>
-  searchParams: Promise<{ [key: string]: string | string[] | undefined }>
 }
 
-export default async function EditUserPage(props: Props) {
-  const supabase = await createClient()
+export default async function EditUserPage(props: PageProps) {
   const params = await props.params
+  const supabase = await createClient()
   
   const { data: user } = await supabase
     .from('profiles')
@@ -27,7 +26,6 @@ export default async function EditUserPage(props: Props) {
     notFound()
   }
 
-  // Fetch all organizations
   const { data: organizations } = await supabase
     .from('organizations')
     .select('id, name')

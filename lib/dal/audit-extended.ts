@@ -1,37 +1,13 @@
+import { AuditLogRepository } from './repositories/audit-log'
 import { createClient } from '@/utils/supabase/server'
-import { cache } from 'react'
+import type { Database } from '@/database.types'
+import type { SupabaseClient } from '@supabase/supabase-js'
 
-export const createAuditLog = async (data: {
-  category: 'auth' | 'organization' | 'member' | 'security' | 'system'
-  action: string
-  organizationId: string
-  actorId: string
-  targetType?: string
-  targetId?: string
-  description: string
-  metadata?: Record<string, any>
-  severity?: 'info' | 'notice' | 'warning' | 'alert' | 'critical'
-}) => {
-  const supabase = await createClient()
-  const { error } = await supabase
-    .from('audit_logs')
-    .insert({
-      ...data,
-      severity: data.severity || 'info'
-    })
-    
-  return !error
-}
+type AuditLogInsert = Database['public']['Tables']['audit_logs']['Insert']
 
-export const getAuditLogsByTarget = cache(async (targetType: string, targetId: string) => {
+export async function createAuditLog(data: Omit<AuditLogInsert, 'id' | 'created_at'>) {
   const supabase = await createClient()
-  const { data, error } = await supabase
-    .from('audit_logs')
-    .select('*')
-    .eq('target_type', targetType)
-    .eq('target_id', targetId)
-    .order('created_at', { ascending: false })
-    
-  if (error) return null
-  return data
-}) 
+  const auditRepo = new AuditLogRepository(supabase)
+  
+  return auditRepo.create(data)
+} 

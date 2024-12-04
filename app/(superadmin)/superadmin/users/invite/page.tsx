@@ -1,5 +1,5 @@
 import { UserInviteForm } from '@/components/superadmin/users/user-invite-form'
-import { getAllOrganizations } from '@/lib/dal/organizations'
+import { getAllOrganizations } from '@/lib/dal/repositories/organization'
 
 export default async function InviteUserPage() {
   const organizations = await getAllOrganizations()

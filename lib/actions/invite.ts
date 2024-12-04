@@ -2,7 +2,6 @@
 
 import { createClient } from '@/utils/supabase/server'
 import { revalidatePath } from 'next/cache'
-import { createAuditLog } from '@/lib/dal/audit-extended'
 import { getCurrentUser } from '@/lib/dal'
 import { type Database } from '@/database.types'
 
@@ -76,21 +75,6 @@ export async function inviteUserAction(data: {
     })
 
   if (membershipError) throw membershipError
-
-  await createAuditLog({
-    category: 'security',
-    action: 'user.invite',
-    organizationId: data.organization_id,
-    actorId: currentUser.id,
-    targetType: 'user',
-    targetId: authUser.user.id,
-    description: `User ${data.email} was invited`,
-    metadata: {
-      ...data,
-      invited_by: currentUser.email
-    },
-    severity: 'notice'
-  })
 
   revalidatePath('/superadmin/users')
 } 

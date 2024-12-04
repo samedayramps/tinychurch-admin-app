@@ -3,7 +3,6 @@
 import { createClient } from '@/utils/supabase/server'
 import { revalidatePath } from 'next/cache'
 import { getCurrentUser } from '@/lib/dal'
-import { createAuditLog } from '@/lib/dal/audit-extended'
 
 export async function updateProfile(formData: FormData): Promise<{ error?: string }> {
   try {
@@ -47,21 +46,6 @@ export async function updateProfile(formData: FormData): Promise<{ error?: strin
       
     if (error) return { error: error.message }
     
-    // Create audit log
-    if (membership) {
-      await createAuditLog({
-        category: 'member',
-        action: 'profile.update',
-        organizationId: membership.organization_id,
-        actorId: user.id,
-        targetType: 'profile',
-        targetId: user.id,
-        description: 'Updated profile information',
-        metadata: {
-          updatedFields: Object.keys(updates).filter(key => formData.get(key) !== null)
-        }
-      })
-    }
     
     revalidatePath('/settings/profile')
     return {}

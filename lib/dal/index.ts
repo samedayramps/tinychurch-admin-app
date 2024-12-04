@@ -80,12 +80,8 @@ export const getOrganizationMembership = cache(async () => {
 })
 
 // Re-export all DAL functions for convenient imports
-export * from './organizations'
-export * from './settings'
-export * from './profiles'
-export * from './auth'
-export { getAuditLogs } from './audit'
-export * from './events'
-export * from './ministries'
-export * from './attendance'
-export * from './communications' 
+export * from './repositories/organization'
+export * from './repositories/settings'
+export * from './repositories/profile'
+export * from './repositories/audit-log'
+export * from './repositories/event'

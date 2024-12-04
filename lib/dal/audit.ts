@@ -1,60 +1,69 @@
-import { createClient } from '@/utils/supabase/server'
-import { cache } from 'react'
+import { getDAL } from './factory'
 import type { Database } from '@/database.types'
+import { TenantContext } from './context/TenantContext'
+import { AuditLogRepository } from './repositories/audit-log'
+import { createClient } from '@/utils/supabase/server'
 
-type AuditLog = Database['public']['Tables']['audit_logs']['Row']
+type AuditLogRow = Database['public']['Tables']['audit_logs']['Row']
 
-export const getAuditLogs = cache(async ({ limit = 10 }: { limit?: number } = {}) => {
-  const supabase = await createClient()
-  
-  const { data, error } = await supabase
-    .from('audit_logs')
-    .select('*')
-    .order('created_at', { ascending: false })
-    .limit(limit)
-    
-  if (error) {
-    console.error('Error fetching audit logs:', error)
-    return null
-  }
-  
-  return data as AuditLog[]
-})
-
-// System-wide organization ID for events not tied to a specific org
-const SYSTEM_ORG_ID = '00000000-0000-0000-0000-000000000000'
-
-type AuditEvent = {
+interface ImpersonationEventData {
   action: 'impersonation_start' | 'impersonation_end'
   actorId: string
   actorEmail: string
   targetId: string
-  organizationId?: string
+  organizationId: string
 }
 
-export async function logImpersonationEvent(data: AuditEvent) {
-  const supabase = await createClient(true)
+export async function logImpersonationEvent(data: ImpersonationEventData): Promise<void> {
+  const context = new TenantContext(
+    data.organizationId,
+    data.actorId,
+    'superadmin'
+  )
+  
+  const dal = await getDAL(context)
+  const auditRepo = dal.getAuditLogRepository()
+
+  await auditRepo.create({
+    action: data.action,
+    actor_id: data.actorId,
+    category: 'security',
+    description: `User ${data.actorEmail} ${data.action === 'impersonation_start' ? 'started' : 'stopped'} impersonating user ${data.targetId}`,
+    metadata: {
+      actor_email: data.actorEmail,
+      target_user_id: data.targetId,
+      timestamp: new Date().toISOString()
+    }
+  })
+}
+
+export async function getAuditLogs(limit: number = 10): Promise<AuditLogRow[]> {
+  const supabase = await createClient()
+  const repository = new AuditLogRepository(supabase)
   
   try {
-    const { error } = await supabase.from('audit_logs').insert({
-      category: 'auth',
-      action: data.action,
-      actor_id: data.actorId,
-      target_id: data.targetId,
-      description: `Superadmin ${data.actorEmail} ${
-        data.action === 'impersonation_start' ? 'started' : 'stopped'
-      } impersonating user ${data.targetId}`,
-      severity: 'notice',
-      metadata: {
-        actor_email: data.actorEmail,
-        target_id: data.targetId
-      }
-    })
-
-    if (error) throw error
-    return true
+    return await repository.findRecent(limit)
   } catch (error) {
-    console.error('Failed to log audit event:', error)
-    return false
+    console.error('Error fetching audit logs:', error)
+    return []
   }
+}
+
+export async function getImpersonationLogs(organizationId: string, userId: string): Promise<AuditLogRow[]> {
+  const context = new TenantContext(
+    organizationId,
+    userId,
+    'superadmin'
+  )
+  
+  const dal = await getDAL(context)
+  const auditRepo = dal.getAuditLogRepository()
+
+  return auditRepo.findByCategory('security', {
+    limit: 50,
+    filter: {
+      actor_id: userId,
+      'metadata->target_user_id': userId
+    }
+  })
 } 

@@ -70,6 +70,42 @@ export type Database = {
             referencedRelation: "organizations"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "audit_logs_target_id_fkey"
+            columns: ["target_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      organization_limits: {
+        Row: {
+          current_usage: number | null
+          max_amount: number
+          organization_id: string
+          resource_type: string
+        }
+        Insert: {
+          current_usage?: number | null
+          max_amount: number
+          organization_id: string
+          resource_type: string
+        }
+        Update: {
+          current_usage?: number | null
+          max_amount?: number
+          organization_id?: string
+          resource_type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "organization_limits_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
         ]
       }
       organization_members: {
@@ -125,6 +161,38 @@ export type Database = {
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      organization_usage: {
+        Row: {
+          amount: number
+          id: string
+          organization_id: string | null
+          resource_type: string
+          timestamp: string | null
+        }
+        Insert: {
+          amount: number
+          id?: string
+          organization_id?: string | null
+          resource_type: string
+          timestamp?: string | null
+        }
+        Update: {
+          amount?: number
+          id?: string
+          organization_id?: string | null
+          resource_type?: string
+          timestamp?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "organization_usage_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
             referencedColumns: ["id"]
           },
         ]

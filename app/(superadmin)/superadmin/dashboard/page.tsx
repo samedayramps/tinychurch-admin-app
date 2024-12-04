@@ -1,4 +1,5 @@
 import { createClient } from '@/utils/supabase/server'
+import { StatsDashboard } from '@/components/superadmin/stats-dashboard'
 
 export default async function SuperAdminDashboardPage() {
   const supabase = await createClient()
@@ -27,6 +28,8 @@ export default async function SuperAdminDashboardPage() {
           <p className="text-3xl font-bold">{orgCount}</p>
         </div>
       </div>
+      
+      <StatsDashboard />
     </div>
   )
 } 

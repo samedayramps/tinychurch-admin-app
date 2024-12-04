@@ -6,7 +6,7 @@ import type { Database } from '@/database.types'
 type AuditLog = Database['public']['Tables']['audit_logs']['Row']
 
 export async function RecentActivity() {
-  const logs = await getAuditLogs({ limit: 5 })
+  const logs = await getAuditLogs(5)
   
   if (!logs) return null
   
