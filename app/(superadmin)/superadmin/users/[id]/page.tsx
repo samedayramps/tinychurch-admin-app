@@ -4,7 +4,7 @@ import { notFound } from 'next/navigation'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { UserProfileTab } from '@/components/superadmin/users/user-profile-tab'
 import { UserOrganizationsTab } from '@/components/superadmin/users/user-organizations-tab'
-import { UserActivityTab } from '@/components/superadmin/users/user-activity-tab'
+import { ActivityLog } from '@/components/activity-log'
 
 interface PageProps {
   params: Promise<{ id: string }>
@@ -64,7 +64,7 @@ export default async function UserDashboardPage({ params }: PageProps) {
         </TabsContent>
 
         <TabsContent value="activity">
-          <UserActivityTab userId={user.id} />
+          <ActivityLog logs={[]} title="Recent Activity" />
         </TabsContent>
       </Tabs>
     </div>

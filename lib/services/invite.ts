@@ -1,5 +1,5 @@
 import { type SupabaseClient } from '@supabase/supabase-js'
-import { createAuditLog } from '@/lib/dal/audit'
+import { logActivity } from '@/lib/utils/audit-logger'
 import type { Database } from '@/database.types'
 
 type AuditSeverity = Database['public']['Enums']['audit_severity']
@@ -105,16 +105,17 @@ export async function createInviteAuditLog(
     role: string
   }
 ) {
-  await createAuditLog({
-    user_id: currentUser.id,
-    event_type: 'invitation_sent',
+  await logActivity({
+    userId: currentUser.id,
+    eventType: 'user_action',
     details: `User ${data.email} was invited`,
-    organization_id: data.organization_id,
+    organizationId: data.organization_id,
     metadata: {
       ...data,
       invited_by: currentUser.email || 'unknown',
       target_id: targetUserId,
-      target_type: 'user'
+      target_type: 'user',
+      action: 'invitation_sent'
     }
   })
 }

@@ -5,7 +5,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { OrganizationProfileTab } from '@/components/superadmin/organizations/organization-profile-tab'
 import { OrganizationMembersTab } from '@/components/superadmin/organizations/organization-members-tab'
 import { OrganizationSettingsTab } from '@/components/superadmin/organizations/organization-settings-tab'
-import { OrganizationActivityTab } from '@/components/superadmin/organizations/organization-activity-tab'
+import { ActivityLog } from '@/components/activity-log'
 
 interface PageProps {
   params: Promise<{ id: string }>
@@ -54,7 +54,7 @@ export default async function OrganizationPage({ params }: PageProps) {
         </TabsContent>
 
         <TabsContent value="activity">
-          <OrganizationActivityTab organizationId={organization.id} />
+          <ActivityLog logs={[]} title="Recent Activity" />
         </TabsContent>
       </Tabs>
     </div>

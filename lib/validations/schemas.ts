@@ -1,10 +1,7 @@
 import * as z from 'zod'
 import type { Database } from '@/database.types'
 
-type UserRole = Database['public']['Enums']['user_role']
-type UserStatus = Database['public']['Enums']['auth_status']
-
-const userValidation = {
+export const userValidation = {
   first_name: z.string().min(2, {
     message: "First name must be at least 2 characters.",
   }),
@@ -14,7 +11,7 @@ const userValidation = {
   email: z.string().email({
     message: "Please enter a valid email address.",
   }),
-  role: z.enum(['admin', 'staff', 'ministry_leader', 'member', 'visitor'] as const),
+  role: z.enum(['admin', 'staff', 'ministry_leader', 'member', 'visitor']),
   is_active: z.boolean().default(true),
   is_superadmin: z.boolean().default(false),
   organization_id: z.string().optional().or(z.literal('')),
@@ -22,7 +19,7 @@ const userValidation = {
     message: "Please enter a valid email address.",
   }).optional().or(z.literal('')),
   phone: z.string().optional().or(z.literal('')),
-  status: z.enum(['invited', 'active', 'suspended', 'inactive', 'deleted'] as const).default('active'),
+  status: z.enum(['invited', 'active', 'suspended', 'inactive', 'deleted'] as const).optional().default('active'),
   notification_preferences: z.object({
     email: z.boolean().default(true),
     sms: z.boolean().default(false),
@@ -61,7 +58,6 @@ export const schemas = {
     email: userValidation.email,
     alternative_email: userValidation.alternative_email,
     phone: userValidation.phone,
-    avatar_url: z.string().optional(),
     notification_preferences: userValidation.notification_preferences,
   })
 } 
