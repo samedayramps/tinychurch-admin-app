@@ -1,179 +1,124 @@
 // lib/dal/repositories/organization.ts
 import { BaseRepository } from '../base/repository'
-import type { Organization } from './types'
 import type { Database } from '@/database.types'
-import { DalError } from '../errors/DalError'
-import { createClient } from '@/utils/supabase/server'
+import { DalError } from '../errors'
 
-export class OrganizationRepository extends BaseRepository<Organization> {
+type OrganizationRow = Database['public']['Tables']['organizations']['Row']
+type OrganizationLimitRow = Database['public']['Tables']['organization_limits']['Row']
+
+export interface OrganizationWithStats extends Omit<OrganizationRow, 'settings'> {
+  memberCount: number
+  settings: {
+    features_enabled?: string[]
+    [key: string]: any
+  } | null
+}
+
+export class OrganizationRepository extends BaseRepository<'organizations'> {
   protected tableName = 'organizations' as const
-  protected organizationField = 'id'
+  protected organizationField = 'id' as keyof OrganizationRow
 
-  // Find by slug with caching
-  async findBySlug(slug: string): Promise<Organization | null> {
-    await this.verifyAccess('read')
-    
-    return this.measureOperation('findBySlug', async () => {
-      try {
-        const cacheKey = `org:slug:${slug}`
-        const cached = await this.cache.get<Organization>(cacheKey)
-        if (cached) return cached
+  async findBySlug(slug: string): Promise<OrganizationRow | null> {
+    try {
+      const { data, error } = await this.supabase
+        .from(this.tableName)
+        .select('*')
+        .eq('slug', slug)
+        .maybeSingle()
 
-        const { data } = await this.baseQuery()
-          .eq('slug', slug)
-          .maybeSingle()
-
-        if (data) {
-          await this.cache.set(cacheKey, data)
-        }
-
-        return data || null
-      } catch (error) {
-        throw new DalError(
-          'Failed to fetch organization',
-          'QUERY_ERROR',
-          this.context?.organizationId,
-          error as Error
-        )
-      }
-    })
+      if (error) throw error
+      return data
+    } catch (error) {
+      throw DalError.operationFailed('findBySlug', error)
+    }
   }
 
-  // Get organization with member counts
-  async findWithStats(id: string): Promise<Organization & { memberCount: number }> {
-    return this.measureOperation('findWithStats', async () => {
-      const { data } = await this.baseQuery()
-        .eq('id', id)
+  async findWithStats(id: string): Promise<OrganizationWithStats | null> {
+    try {
+      const { data, error } = await this.supabase
+        .from(this.tableName)
         .select(`
           *,
-          members:organization_members(count)
+          organization_members(count)
         `)
+        .filter('id', 'eq', id)
         .single()
 
-      if (!data) {
-        throw new DalError(
-          'Organization not found',
-          'RESOURCE_NOT_FOUND',
-          this.context?.organizationId
-        )
-      }
-
-      // Ensure required fields are present
-      const organization: Organization = {
-        id: data.id,
-        name: data.name || '',
-        slug: data.slug || '',
-        created_at: data.created_at,
-        updated_at: data.updated_at,
-        deleted_at: data.deleted_at,
-        settings: data.settings
-      }
+      if (error) throw error
+      if (!data) return null
 
       return {
-        ...organization,
-        memberCount: data.members?.[0]?.count || 0
+        ...data,
+        memberCount: data.organization_members?.[0]?.count || 0,
+        settings: typeof data.settings === 'string' 
+          ? JSON.parse(data.settings)
+          : data.settings
       }
-    })
+    } catch (error) {
+      throw DalError.operationFailed('findWithStats', error)
+    }
   }
 
-  // Check if feature is enabled
-  async hasFeature(id: string, feature: string): Promise<boolean> {
-    return this.measureOperation('hasFeature', async () => {
-      const { data } = await this.baseQuery()
-        .eq('id', id)
-        .select('settings')
-        .single()
-
-      if (!data?.settings) return false
-
-      const settings = data.settings as { features?: string[] }
-      return settings.features?.includes(feature) || false
-    })
-  }
-
-  // Get organization statistics
-  async getOrganizationStats() {
-    return this.measureOperation('getOrganizationStats', async () => {
-      const { data } = await this.baseQuery()
+  async findAll(): Promise<OrganizationWithStats[]> {
+    try {
+      const { data, error } = await this.baseQuery()
         .select(`
-          id,
-          name,
-          members:organization_members(count),
-          features:organization_features(count)
+          *,
+          organization_members(count)
+        `)
+        .order('name')
+
+      if (error) throw error
+
+      return (data || []).map(org => ({
+        ...org,
+        memberCount: org.organization_members?.[0]?.count || 0,
+        settings: typeof org.settings === 'string' 
+          ? JSON.parse(org.settings)
+          : org.settings as {
+              features_enabled?: string[]
+              [key: string]: any
+            } | null
+      }))
+    } catch (error) {
+      throw DalError.operationFailed('findAll', error)
+    }
+  }
+
+  async getStats(): Promise<{
+    memberCount: number
+    // Add other stats you want to track
+  }> {
+    try {
+      const { data, error } = await this.baseQuery()
+        .select(`
+          *,
+          organization_members(count)
         `)
         .single()
 
-      if (!data) {
-        throw new DalError(
-          'Failed to get organization stats',
-          'RESOURCE_NOT_FOUND',
-          this.context?.organizationId
-        )
-      }
+      if (error) throw error
 
       return {
-        memberCount: data.members?.[0]?.count || 0,
-        featureCount: data.features?.[0]?.count || 0,
-        name: data.name,
-        id: data.id
+        memberCount: data.organization_members?.[0]?.count || 0,
+        // Add other stats here
       }
-    })
+    } catch (error) {
+      throw DalError.operationFailed('getStats', error)
+    }
   }
-}
 
-// Create a function to get the repository instance
-export async function getOrganizationRepository() {
-  const supabase = await createClient()
-  return new OrganizationRepository(supabase)
-}
+  async findByLimits(resourceType: string): Promise<OrganizationLimitRow[]> {
+    try {
+      const { data, error } = await this.supabase
+        .from('organization_limits')
+        .select('*')
+        .filter('resource_type', 'eq', resourceType)
 
-// Export convenience method
-export async function getOrganizationStats() {
-  const supabase = await createClient()
-  
-  // Get member count
-  const { count: totalMembers } = await supabase
-    .from('organization_members')
-    .select('*', { count: 'exact', head: true })
-    
-  // Get ministries count
-  const { count: totalMinistries } = await supabase
-    .from('ministries')
-    .select('*', { count: 'exact', head: true })
-    
-  // Get events count
-  const { count: totalEvents } = await supabase
-    .from('events')
-    .select('*', { count: 'exact', head: true })
-    
-  // Get total attendance
-  const { data: attendanceData } = await supabase
-    .from('event_attendance')
-    .select('count')
-    
-  const totalAttendance = attendanceData?.reduce((sum, record) => 
-    sum + (record.count || 0), 0) || 0
-
-  return {
-    totalMembers: totalMembers || 0,
-    totalMinistries: totalMinistries || 0,
-    totalEvents: totalEvents || 0,
-    totalAttendance: totalAttendance
+      if (error) throw error
+      return data || []
+    } catch (error) {
+      throw this.handleError(error, 'findByLimits')
+    }
   }
-}
-
-export async function getAllOrganizations() {
-  const supabase = await createClient()
-  
-  const { data: organizations, error } = await supabase
-    .from('organizations')
-    .select('id, name')
-    .order('name')
-    
-  if (error) {
-    console.error('Error fetching organizations:', error)
-    return null
-  }
-  
-  return organizations
 }

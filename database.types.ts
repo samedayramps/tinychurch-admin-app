@@ -9,76 +9,6 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      audit_logs: {
-        Row: {
-          action: string
-          actor_id: string | null
-          category: Database["public"]["Enums"]["audit_category"]
-          created_at: string | null
-          description: string
-          id: string
-          ip_address: unknown | null
-          metadata: Json | null
-          organization_id: string | null
-          severity: Database["public"]["Enums"]["audit_severity"] | null
-          target_id: string | null
-          target_type: string | null
-          user_agent: string | null
-        }
-        Insert: {
-          action: string
-          actor_id?: string | null
-          category: Database["public"]["Enums"]["audit_category"]
-          created_at?: string | null
-          description: string
-          id?: string
-          ip_address?: unknown | null
-          metadata?: Json | null
-          organization_id?: string | null
-          severity?: Database["public"]["Enums"]["audit_severity"] | null
-          target_id?: string | null
-          target_type?: string | null
-          user_agent?: string | null
-        }
-        Update: {
-          action?: string
-          actor_id?: string | null
-          category?: Database["public"]["Enums"]["audit_category"]
-          created_at?: string | null
-          description?: string
-          id?: string
-          ip_address?: unknown | null
-          metadata?: Json | null
-          organization_id?: string | null
-          severity?: Database["public"]["Enums"]["audit_severity"] | null
-          target_id?: string | null
-          target_type?: string | null
-          user_agent?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "audit_logs_actor_id_fkey"
-            columns: ["actor_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "audit_logs_organization_id_fkey"
-            columns: ["organization_id"]
-            isOneToOne: false
-            referencedRelation: "organizations"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "audit_logs_target_id_fkey"
-            columns: ["target_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       organization_limits: {
         Row: {
           current_usage: number | null
@@ -165,6 +95,44 @@ export type Database = {
           },
         ]
       }
+      organization_settings: {
+        Row: {
+          created_at: string | null
+          deleted_at: string | null
+          id: string
+          key: string
+          organization_id: string
+          updated_at: string | null
+          value: Json
+        }
+        Insert: {
+          created_at?: string | null
+          deleted_at?: string | null
+          id?: string
+          key: string
+          organization_id: string
+          updated_at?: string | null
+          value: Json
+        }
+        Update: {
+          created_at?: string | null
+          deleted_at?: string | null
+          id?: string
+          key?: string
+          organization_id?: string
+          updated_at?: string | null
+          value?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "organization_settings_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       organization_usage: {
         Row: {
           amount: number
@@ -209,6 +177,7 @@ export type Database = {
           name: string
           settings: Json | null
           slug: string
+          status: string | null
           timezone: string | null
           updated_at: string | null
           website_url: string | null
@@ -224,6 +193,7 @@ export type Database = {
           name: string
           settings?: Json | null
           slug: string
+          status?: string | null
           timezone?: string | null
           updated_at?: string | null
           website_url?: string | null
@@ -239,6 +209,7 @@ export type Database = {
           name?: string
           settings?: Json | null
           slug?: string
+          status?: string | null
           timezone?: string | null
           updated_at?: string | null
           website_url?: string | null
@@ -255,14 +226,16 @@ export type Database = {
           first_name: string | null
           full_name: string | null
           id: string
+          invitation_token: string | null
+          invited_at: string | null
           is_active: boolean | null
           is_superadmin: boolean | null
-          language: string | null
           last_login: string | null
           last_name: string | null
+          last_sign_in_at: string | null
           notification_preferences: Json | null
           phone: string | null
-          theme: string | null
+          status: Database["public"]["Enums"]["auth_status"] | null
           updated_at: string | null
         }
         Insert: {
@@ -274,14 +247,16 @@ export type Database = {
           first_name?: string | null
           full_name?: string | null
           id: string
+          invitation_token?: string | null
+          invited_at?: string | null
           is_active?: boolean | null
           is_superadmin?: boolean | null
-          language?: string | null
           last_login?: string | null
           last_name?: string | null
+          last_sign_in_at?: string | null
           notification_preferences?: Json | null
           phone?: string | null
-          theme?: string | null
+          status?: Database["public"]["Enums"]["auth_status"] | null
           updated_at?: string | null
         }
         Update: {
@@ -293,23 +268,82 @@ export type Database = {
           first_name?: string | null
           full_name?: string | null
           id?: string
+          invitation_token?: string | null
+          invited_at?: string | null
           is_active?: boolean | null
           is_superadmin?: boolean | null
-          language?: string | null
           last_login?: string | null
           last_name?: string | null
+          last_sign_in_at?: string | null
           notification_preferences?: Json | null
           phone?: string | null
-          theme?: string | null
+          status?: Database["public"]["Enums"]["auth_status"] | null
           updated_at?: string | null
         }
         Relationships: []
+      }
+      user_activity_logs: {
+        Row: {
+          created_at: string | null
+          details: string
+          event_type: Database["public"]["Enums"]["activity_event_type"]
+          id: string
+          ip_address: string | null
+          metadata: Json | null
+          organization_id: string | null
+          user_agent: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          details: string
+          event_type: Database["public"]["Enums"]["activity_event_type"]
+          id?: string
+          ip_address?: string | null
+          metadata?: Json | null
+          organization_id?: string | null
+          user_agent?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          details?: string
+          event_type?: Database["public"]["Enums"]["activity_event_type"]
+          id?: string
+          ip_address?: string | null
+          metadata?: Json | null
+          organization_id?: string | null
+          user_agent?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_activity_logs_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
+      aggregate_audit_metrics: {
+        Args: {
+          operation_name: string
+          time_window?: unknown
+        }
+        Returns: {
+          operation: string
+          avg_time: number
+          max_time: number
+          total_count: number
+          error_count: number
+        }[]
+      }
       akeys: {
         Args: {
           "": unknown
@@ -370,6 +404,12 @@ export type Database = {
           "": string
         }
         Returns: string
+      }
+      cleanup_old_audit_logs: {
+        Args: {
+          days_to_keep: number
+        }
+        Returns: number
       }
       each: {
         Args: {
@@ -528,42 +568,6 @@ export type Database = {
         }
         Returns: number
       }
-      log_audit_event:
-        | {
-            Args: {
-              p_category: Database["public"]["Enums"]["audit_category"]
-              p_action: string
-              p_organization_id: string
-              p_actor_id: string
-              p_description: string
-              p_metadata?: Json
-              p_severity?: Database["public"]["Enums"]["audit_severity"]
-            }
-            Returns: string
-          }
-        | {
-            Args: {
-              p_category: string
-              p_action: string
-              p_actor_id: string
-              p_description: string
-              p_metadata?: Json
-              p_severity?: string
-            }
-            Returns: string
-          }
-        | {
-            Args: {
-              p_category: string
-              p_action: string
-              p_organization_id: string
-              p_actor_id: string
-              p_description: string
-              p_metadata?: Json
-              p_severity?: string
-            }
-            Returns: string
-          }
       manage_impersonation: {
         Args: {
           target_user_id: string
@@ -601,8 +605,30 @@ export type Database = {
       }
     }
     Enums: {
-      audit_category: "auth" | "organization" | "member" | "security" | "system"
-      audit_severity: "info" | "notice" | "warning" | "alert" | "critical"
+      activity_event_type:
+        | "login"
+        | "logout"
+        | "profile_update"
+        | "password_change"
+        | "organization_join"
+        | "organization_leave"
+        | "role_change"
+        | "invitation_sent"
+        | "invitation_accepted"
+        | "account_created"
+        | "account_deleted"
+        | "account_suspended"
+        | "account_reactivated"
+      audit_event_type:
+        | "auth"
+        | "data"
+        | "system"
+        | "security"
+        | "performance"
+        | "error"
+        | "user_action"
+      audit_severity: "info" | "warning" | "error" | "critical"
+      auth_status: "invited" | "active" | "suspended" | "inactive" | "deleted"
       user_role: "admin" | "staff" | "ministry_leader" | "member" | "visitor"
       visibility_level: "public" | "members_only" | "staff_only" | "private"
     }

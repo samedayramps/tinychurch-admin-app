@@ -24,7 +24,7 @@ import {
 } from '@/lib/events/impersonation'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Button } from '@/components/ui/button'
-import { cn } from '@/lib/utils'
+import { cn } from '@/lib/utils/cn'
 
 interface ImpersonationUserSelectProps {
   users: Profile[]
@@ -44,7 +44,7 @@ interface UserOption extends Profile {
       id: string
       name: string
     }
-    role: string
+    role: 'admin' | 'staff' | 'ministry_leader' | 'member' | 'visitor'
   }>
 }
 
@@ -127,27 +127,25 @@ export function ImpersonationUserSelect({ users }: ImpersonationUserSelectProps)
       
       const result = await startImpersonation(userId)
       
-      if (result?.error) {
+      if ('error' in result) {
         throw new Error(result.error)
       }
 
-      if (result.success) {
-        // Update local state first
-        setUserDetails(userData)
-        setCurrentUserName(userData.full_name || userData.email)
-        
-        // Emit event
-        emitImpersonationEvent({ type: 'start', userId: result.userId })
-        
-        toast({
-          title: "Impersonation started",
-          description: "You are now impersonating another user",
-        })
+      // Update local state first
+      setUserDetails(userData)
+      setCurrentUserName(userData.full_name || userData.email)
+      
+      // Emit event
+      emitImpersonationEvent({ type: 'start', userId: result.userId })
+      
+      toast({
+        title: "Impersonation started",
+        description: "You are now impersonating another user",
+      })
 
-        // Force refresh context and routes
-        await refresh()
-        router.refresh()
-      }
+      // Force refresh context and routes
+      await refresh()
+      router.refresh()
     } catch (error) {
       console.error('Failed to start impersonation:', error)
       // Reset state on error
@@ -158,7 +156,7 @@ export function ImpersonationUserSelect({ users }: ImpersonationUserSelectProps)
       toast({
         variant: "destructive",
         title: "Error",
-        description: "Failed to start impersonation. Please try again.",
+        description: error instanceof Error ? error.message : "Failed to start impersonation",
       })
     } finally {
       setIsLoading(false)
@@ -179,35 +177,29 @@ export function ImpersonationUserSelect({ users }: ImpersonationUserSelectProps)
       
       const result = await stopImpersonation()
       
-      if (result.success) {
-        toast({
-          title: "Impersonation stopped",
-          description: "You are no longer impersonating another user",
-        })
-        
-        // Force refresh context and routes
-        await refresh()
-        router.refresh()
-        router.push('/superadmin/dashboard')
-      } else {
-        // Revert state on error
-        await refresh()
-        
-        toast({
-          variant: "destructive",
-          title: "Error",
-          description: result.error || "Failed to stop impersonation",
-        })
+      if ('error' in result) {
+        throw new Error(result.error)
       }
+
+      toast({
+        title: "Impersonation stopped",
+        description: "You are no longer impersonating another user",
+      })
+      
+      // Force refresh context and routes
+      await refresh()
+      router.refresh()
+      router.push('/superadmin/dashboard')
     } catch (error) {
+      console.error('Error stopping impersonation:', error)
+      
       // Revert state on error
       await refresh()
       
-      console.error('Error stopping impersonation:', error)
       toast({
         variant: "destructive",
         title: "Error",
-        description: "An unexpected error occurred",
+        description: error instanceof Error ? error.message : "An unexpected error occurred",
       })
     } finally {
       setIsLoading(false)

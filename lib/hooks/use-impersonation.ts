@@ -1,64 +1,40 @@
 'use client'
 
-import { useEffect, useState, useCallback, useRef } from 'react'
-import { createClient } from '@/utils/supabase/client'
+import { useEffect, useState, useCallback } from 'react'
+import type { ImpersonationState } from '@/lib/types/impersonation'
+import { createClient } from '@/lib/utils/supabase/client'
 
-export function useImpersonationStatus() {
-  const [isImpersonating, setIsImpersonating] = useState(false)
-  const [impersonatedUserId, setImpersonatedUserId] = useState<string | null>(null)
-  const [isInitialized, setIsInitialized] = useState(false)
-  const supabase = useRef(createClient())
-  const lastCheck = useRef<number>(0)
-  const MIN_CHECK_INTERVAL = 5000 // Increase to 5 seconds
-
-  const checkImpersonationStatus = useCallback(async (force = false) => {
-    const now = Date.now()
-    if (!force && now - lastCheck.current < MIN_CHECK_INTERVAL) {
-      return
-    }
-    
+export function useImpersonationStatus(): ImpersonationState {
+  const checkStatus = useCallback(async () => {
     try {
-      lastCheck.current = now
-      const response = await fetch('/api/auth/impersonation-status')
+      const response = await fetch('/api/auth/impersonation-status', {
+        cache: 'no-store',
+        headers: {
+          'Cache-Control': 'no-cache'
+        }
+      })
       const data = await response.json()
-      
-      setIsImpersonating(data.isImpersonating)
-      setImpersonatedUserId(data.impersonatingId)
-      
-      if (!isInitialized) {
-        setIsInitialized(true)
-      }
+      setState(current => ({
+        ...current,
+        ...data,
+        isInitialized: true
+      }))
     } catch (error) {
       console.error('Failed to check impersonation status:', error)
-      setIsImpersonating(false)
-      setImpersonatedUserId(null)
     }
-  }, [isInitialized])
+  }, [])
 
-  // Initial check
+  const [state, setState] = useState<ImpersonationState>({
+    isImpersonating: false,
+    impersonatingId: null,
+    realUserId: null,
+    isInitialized: false,
+    refresh: checkStatus
+  })
+
   useEffect(() => {
-    checkImpersonationStatus(true)
-  }, [checkImpersonationStatus])
+    checkStatus()
+  }, [checkStatus])
 
-  // Listen for auth state changes
-  useEffect(() => {
-    const {
-      data: { subscription },
-    } = supabase.current.auth.onAuthStateChange(async (event) => {
-      if (event === 'SIGNED_IN' || event === 'SIGNED_OUT' || event === 'USER_UPDATED') {
-        await checkImpersonationStatus(true)
-      }
-    })
-
-    return () => {
-      subscription.unsubscribe()
-    }
-  }, [checkImpersonationStatus])
-
-  return {
-    isImpersonating,
-    impersonatedUserId,
-    refresh: () => checkImpersonationStatus(true),
-    isInitialized
-  }
+  return state
 } 

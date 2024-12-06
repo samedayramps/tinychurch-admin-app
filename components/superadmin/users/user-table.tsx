@@ -10,7 +10,7 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { Button } from '@/components/ui/button'
-import { createClient } from '@/utils/supabase/client'
+import { createClient } from '@/lib/utils/supabase/client'
 import { useRouter } from 'next/navigation'
 import { Edit2 } from 'lucide-react'
 import type { Profile } from '@/lib/types/auth'

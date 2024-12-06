@@ -1,7 +1,5 @@
 import type { Database } from '@/database.types'
 
-// Update AuditLog type to match database schema
-export type AuditLog = Database['public']['Tables']['audit_logs']['Row']
 
 // Base entity interface
 export interface BaseEntity extends Record<string, unknown> {
@@ -119,8 +117,6 @@ export type {
   OrganizationRepository,
   OrganizationMemberRepository,
   UserRepository,
-  AuditLogRepository,
-  EventRepository,
   ProfileRepository,
   SettingsRepository
 } from './repository-types' 

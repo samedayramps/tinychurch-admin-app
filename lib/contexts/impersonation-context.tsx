@@ -1,27 +1,19 @@
 'use client'
 
 import { createContext, useContext, useEffect, useRef, useState, useCallback } from 'react'
-import { createClient } from '@/utils/supabase/client'
+import { createClient } from '@/lib/utils/supabase/client'
 import { IMPERSONATION_EVENT } from '@/lib/events/impersonation'
-
-// Add proper type for the event
-interface ImpersonationEventDetail {
-  type: 'start' | 'stop'
-  userId?: string
-}
-
-interface ImpersonationState {
-  isImpersonating: boolean
-  impersonatedUserId: string | null
-  isInitialized: boolean
-  refresh: () => Promise<void>
-}
+import type { 
+  ImpersonationState, 
+  ImpersonationEventDetail 
+} from '@/lib/types/impersonation'
 
 const ImpersonationContext = createContext<ImpersonationState | null>(null)
 
 export function ImpersonationProvider({ children }: { children: React.ReactNode }) {
   const [isImpersonating, setIsImpersonating] = useState(false)
-  const [impersonatedUserId, setImpersonatedUserId] = useState<string | null>(null)
+  const [impersonatingId, setImpersonatingId] = useState<string | null>(null)
+  const [realUserId, setRealUserId] = useState<string | null>(null)
   const [isInitialized, setIsInitialized] = useState(false)
   const supabase = useRef(createClient())
   const lastCheck = useRef<number>(0)
@@ -44,12 +36,14 @@ export function ImpersonationProvider({ children }: { children: React.ReactNode 
       const data = await response.json()
 
       setIsImpersonating(data.isImpersonating)
-      setImpersonatedUserId(data.impersonatingId)
+      setImpersonatingId(data.impersonatingId)
+      setRealUserId(data.realUserId)
       setIsInitialized(true)
     } catch (error) {
       console.error('Failed to check impersonation status:', error)
       setIsImpersonating(false)
-      setImpersonatedUserId(null)
+      setImpersonatingId(null)
+      setRealUserId(null)
     }
   }, [])
 
@@ -86,7 +80,8 @@ export function ImpersonationProvider({ children }: { children: React.ReactNode 
       // If stopping, immediately clear state
       if (event.detail.type === 'stop') {
         setIsImpersonating(false)
-        setImpersonatedUserId(null)
+        setImpersonatingId(null)
+        setRealUserId(null)
       }
     }
 
@@ -112,7 +107,8 @@ export function ImpersonationProvider({ children }: { children: React.ReactNode 
   return (
     <ImpersonationContext.Provider value={{
       isImpersonating,
-      impersonatedUserId,
+      impersonatingId,
+      realUserId,
       isInitialized,
       refresh: () => checkImpersonationStatus(true)
     }}>

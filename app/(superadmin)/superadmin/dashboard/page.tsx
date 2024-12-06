@@ -1,4 +1,4 @@
-import { createClient } from '@/utils/supabase/server'
+import { createClient } from '@/lib/utils/supabase/server'
 import { StatsDashboard } from '@/components/superadmin/stats-dashboard'
 
 export default async function SuperAdminDashboardPage() {

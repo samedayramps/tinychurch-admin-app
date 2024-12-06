@@ -1,4 +1,4 @@
-import { createClient } from '@/utils/supabase/server'
+import { createClient } from '@/lib/utils/supabase/server'
 import { cache } from 'react'
 import type { Profile } from '@/lib/types/auth'
 

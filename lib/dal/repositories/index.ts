@@ -1,8 +1,6 @@
 export * from './organization'
 export * from './organization-member'
 export * from './user'
-export * from './audit-log'
-export * from './event'
 export * from './profile'
 export * from './settings'
 
@@ -11,8 +9,6 @@ export type {
   OrganizationRepository,
   OrganizationMemberRepository,
   UserRepository,
-  AuditLogRepository,
-  EventRepository,
   ProfileRepository,
   SettingsRepository
 } from './types' 

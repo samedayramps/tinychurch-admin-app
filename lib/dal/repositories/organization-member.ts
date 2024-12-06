@@ -1,46 +1,58 @@
 // lib/dal/repositories/organization-member.ts
 import { BaseRepository } from '../base/repository'
-import type { OrganizationMember } from './types'
 import type { Database } from '@/database.types'
+import type { PostgrestResponse } from '@supabase/postgrest-js'
 
-export class OrganizationMemberRepository extends BaseRepository<OrganizationMember> {
+type OrganizationMemberRow = Database['public']['Tables']['organization_members']['Row']
+type ProfileRow = Database['public']['Tables']['profiles']['Row']
+
+export interface MemberWithProfile extends OrganizationMemberRow {
+  profile: Pick<ProfileRow, 'id' | 'email' | 'full_name' | 'avatar_url'>
+}
+
+export class OrganizationMemberRepository extends BaseRepository<'organization_members'> {
   protected tableName = 'organization_members' as const
-  protected organizationField = 'organization_id'
+  protected organizationField = 'organization_id' as const
 
-  // Find member with profile
-  async findMemberWithProfile(userId: string): Promise<OrganizationMember | null> {
-    const { data } = await this.baseQuery()
-      .eq('user_id', userId)
-      .select(`
-        *,
-        profiles (*)
-      `)
-      .maybeSingle()
+  async findByRole(role: Database['public']['Enums']['user_role']): Promise<MemberWithProfile[]> {
+    try {
+      const { data, error } = await this.baseQuery()
+        .eq('role', role)
+        .select(`
+          *,
+          profile:profiles!inner (
+            id,
+            email,
+            full_name,
+            avatar_url
+          )
+        `)
+        .throwOnError() as PostgrestResponse<MemberWithProfile>
 
-    return data || null
+      return data ?? []
+    } catch (error) {
+      throw this.handleError(error, 'findByRole')
+    }
   }
 
-  // Find members by role
-  async findByRole(role: string): Promise<OrganizationMember[]> {
-    const { data } = await this.baseQuery()
-      .eq('role', role)
-      .select(`
-        *,
-        profiles (
-          id,
-          email,
-          full_name,
-          avatar_url
-        )
-      `)
+  async findByOrganization(organizationId: string): Promise<MemberWithProfile[]> {
+    try {
+      const { data, error } = await this.baseQuery()
+        .eq('organization_id', organizationId)
+        .select(`
+          *,
+          profile:profiles!inner (
+            id,
+            email,
+            full_name,
+            avatar_url
+          )
+        `)
+        .throwOnError() as PostgrestResponse<MemberWithProfile>
 
-    return data || []
-  }
-
-  // Update member role
-  async updateRole(userId: string, role: string): Promise<void> {
-    await (this.baseQuery() as any)
-      .eq('user_id', userId)
-      .update({ role })
+      return data ?? []
+    } catch (error) {
+      throw this.handleError(error, 'findByOrganization')
+    }
   }
 }

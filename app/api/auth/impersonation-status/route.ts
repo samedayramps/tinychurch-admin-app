@@ -1,13 +1,11 @@
-import { createClient } from '@/utils/supabase/server'
-import { cookies } from 'next/headers'
-import { revalidatePath } from 'next/cache'
+import { ImpersonationService } from '@/lib/services/impersonation'
+import { createClient } from '@/lib/utils/supabase/server'
 
 export async function GET() {
   const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
   
-  const { data: { user }, error } = await supabase.auth.getUser()
-  
-  if (error || !user) {
+  if (!user) {
     return Response.json({
       isImpersonating: false,
       impersonatingId: null,
@@ -15,19 +13,8 @@ export async function GET() {
     })
   }
   
-  const impersonationData = user.app_metadata?.impersonation
-  const cookieStore = await cookies()
-  const impersonatingId = cookieStore.get('impersonating_user_id')?.value
+  const service = await ImpersonationService.create()
+  const status = await service.getStatus(user.id)
   
-  // Only consider impersonation active if both metadata and cookie exist
-  const isActive = !!impersonationData && !!impersonatingId
-  
-  // Force revalidation of layout
-  revalidatePath('/', 'layout')
-  
-  return Response.json({
-    isImpersonating: isActive,
-    impersonatingId: isActive ? impersonationData?.impersonating : null,
-    realUserId: isActive ? impersonationData?.original_user : null
-  })
+  return Response.json(status)
 } 

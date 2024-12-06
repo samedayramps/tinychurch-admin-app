@@ -1,5 +1,8 @@
 import { type SupabaseClient } from '@supabase/supabase-js'
-import { createAuditLog } from '@/lib/dal/audit-extended'
+import { createAuditLog } from '@/lib/dal/audit'
+import type { Database } from '@/database.types'
+
+type AuditSeverity = Database['public']['Enums']['audit_severity']
 
 export async function verifyInviterPermissions(supabase: SupabaseClient, userId: string) {
   const { data: profile } = await supabase
@@ -103,17 +106,15 @@ export async function createInviteAuditLog(
   }
 ) {
   await createAuditLog({
-    category: 'security',
-    action: 'user.invite',
+    user_id: currentUser.id,
+    event_type: 'invitation_sent',
+    details: `User ${data.email} was invited`,
     organization_id: data.organization_id,
-    actor_id: currentUser.id,
-    target_type: 'user',
-    target_id: targetUserId,
-    description: `User ${data.email} was invited`,
     metadata: {
       ...data,
-      invited_by: currentUser.email || 'unknown'
-    },
-    severity: 'notice'
+      invited_by: currentUser.email || 'unknown',
+      target_id: targetUserId,
+      target_type: 'user'
+    }
   })
 }

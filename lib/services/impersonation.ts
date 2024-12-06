@@ -1,81 +1,90 @@
 // lib/services/impersonation.ts
-import { createClient } from '@/utils/supabase/server'
+import { ImpersonationRepository } from '@/lib/dal/repositories/impersonation'
 import { AuditLogRepository } from '@/lib/dal/repositories/audit-log'
-import { ProfileRepository } from '@/lib/dal/repositories/profile'
-import { type SupabaseClient } from '@supabase/supabase-js'
+import { createClient } from '@/lib/utils/supabase/server'
+import { ImpersonationCookies } from '@/lib/utils/impersonation-cookies'
+import { ImpersonationStartResult, ImpersonationStopResult } from '@/lib/types/impersonation'
 
 export class ImpersonationService {
-  private supabase: SupabaseClient
+  private impersonationRepo: ImpersonationRepository
   private auditRepo: AuditLogRepository
-  private profileRepo: ProfileRepository
 
-  private constructor(supabase: SupabaseClient) {
-    this.supabase = supabase
-    this.auditRepo = new AuditLogRepository(supabase)
-    this.profileRepo = new ProfileRepository(supabase)
+  private constructor(
+    impersonationRepo: ImpersonationRepository,
+    auditRepo: AuditLogRepository
+  ) {
+    this.impersonationRepo = impersonationRepo
+    this.auditRepo = auditRepo
   }
 
-  static async create(): Promise<ImpersonationService> {
+  static async create() {
     const supabase = await createClient(true)
-    return new ImpersonationService(supabase)
+    return new ImpersonationService(
+      new ImpersonationRepository(supabase),
+      new AuditLogRepository(supabase)
+    )
   }
 
-  async startImpersonation(actorId: string, targetId: string) {
-    // Verify superadmin status
-    const actor = await this.profileRepo.findById(actorId)
-    if (!actor?.is_superadmin) {
-      throw new Error('Unauthorized - Superadmin access required')
+  async startImpersonation(adminId: string, targetUserId: string): Promise<ImpersonationStartResult> {
+    try {
+      const result = await this.impersonationRepo.startImpersonation(adminId, targetUserId)
+
+      // Get organization context from target's memberships
+      const organizationId = result.target.organization_members?.[0]?.organization_id
+
+      // Log the event
+      await this.auditRepo.create({
+        user_id: adminId,
+        event_type: 'login',
+        details: `Admin ${adminId} started impersonating user ${targetUserId}`,
+        organization_id: null
+      })
+
+      // Use cookie utility instead of direct manipulation
+      ImpersonationCookies.set(targetUserId)
+
+      return { success: true, userId: targetUserId }
+    } catch (error) {
+      return { error: error instanceof Error ? error.message : 'Failed to start impersonation' }
     }
+  }
 
-    // Verify target user exists
-    const target = await this.profileRepo.findById(targetId)
-    if (!target) {
-      throw new Error('Target user not found')
+  async stopImpersonation(adminId: string, targetUserId: string): Promise<ImpersonationStopResult> {
+    try {
+      await this.impersonationRepo.stopImpersonation(adminId)
+
+      const impersonatingId = await ImpersonationCookies.get()
+
+      if (impersonatingId) {
+        // Log the event
+        await this.auditRepo.create({
+          user_id: adminId,
+          event_type: 'logout',
+          details: `Admin ${adminId} stopped impersonating user ${targetUserId}`,
+          organization_id: null
+        })
+
+        // Use cookie utility
+        await ImpersonationCookies.clear()
+      }
+
+      return { success: true }
+    } catch (error) {
+      return { error: error instanceof Error ? error.message : 'Failed to stop impersonation' }
     }
-
-    // Set impersonation metadata
-    await this.supabase.auth.admin.updateUserById(actorId, {
-      app_metadata: {
-        impersonation: {
-          impersonating: targetId,
-          original_user: actorId,
-          started_at: Date.now()
-        }
-      }
-    })
-
-    // Log impersonation start
-    await this.auditRepo.create({
-      category: 'auth',
-      action: 'impersonation_start',
-      actor_id: actorId,
-      target_id: targetId,
-      description: `Superadmin ${actor.email} started impersonating user ${target.email}`
-    })
   }
 
-  async stopImpersonation(actorId: string) {
-    // Clear impersonation metadata
-    await this.supabase.auth.admin.updateUserById(actorId, {
-      app_metadata: {
-        impersonation: null
-      }
-    })
+  async getStatus(userId: string) {
+    const status = await this.impersonationRepo.getImpersonationStatus(userId)
+    const impersonatingId = ImpersonationCookies.get()
 
-    // Get user details for audit log
-    const actor = await this.profileRepo.findById(actorId)
+    // Only consider impersonation active if both metadata and cookie exist
+    const isActive = !!status && !!impersonatingId
 
-    // Log impersonation end
-    await this.auditRepo.create({
-      category: 'auth',
-      action: 'impersonation_end',
-      actor_id: actorId,
-      description: `Superadmin ${actor?.email} stopped impersonation`
-    })
-  }
-
-  async getImpersonationStatus(userId: string) {
-    const { data: { user } } = await this.supabase.auth.admin.getUserById(userId)
-    return user?.app_metadata?.impersonation
+    return {
+      isImpersonating: isActive,
+      impersonatingId: isActive ? status?.impersonating : null,
+      realUserId: isActive ? status?.original_user : null
+    }
   }
 }

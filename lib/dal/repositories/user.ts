@@ -1,33 +1,44 @@
 // lib/dal/repositories/user.ts
 import { BaseRepository } from '../base/repository'
-import type { Profile } from './types'
 import type { Database } from '@/database.types'
+import type { SupabaseClient } from '@supabase/supabase-js'
+import type { TenantContext } from '../context/TenantContext'
 
-export class UserRepository extends BaseRepository<Profile> {
+type ProfileRow = Database['public']['Tables']['profiles']['Row']
+
+export class UserRepository extends BaseRepository<'profiles'> {
   protected tableName = 'profiles' as const
-  protected organizationField = undefined // Users can belong to multiple orgs
+  protected organizationField = undefined
 
-  // Find by email
-  async findByEmail(email: string): Promise<Profile | null> {
-    const { data } = await this.baseQuery()
-      .eq('email', email)
-      .maybeSingle()
-
-    return data || null
+  constructor(
+    protected readonly supabase: SupabaseClient<Database>,
+    protected readonly context?: TenantContext
+  ) {
+    super(supabase, context)
   }
 
-  // Find superadmins
-  async findSuperadmins(): Promise<Profile[]> {
-    const { data } = await this.baseQuery()
-      .eq('is_superadmin', true)
+  async findByEmail(email: string): Promise<ProfileRow | null> {
+    try {
+      const { data, error } = await this.baseQuery()
+        .eq('email', email)
+        .single()
 
-    return data || []
+      if (error) throw error
+      return data
+    } catch (error) {
+      throw this.handleError(error, 'findByEmail')
+    }
   }
 
-  // Update last login
-  async updateLastLogin(id: string): Promise<void> {
-    await this.update(id, {
-      last_login: new Date().toISOString()
-    })
+  async findAll(): Promise<ProfileRow[]> {
+    try {
+      const { data, error } = await this.baseQuery()
+        .select('*')
+
+      if (error) throw error
+      return data || []
+    } catch (error) {
+      throw this.handleError(error, 'findAll')
+    }
   }
 }

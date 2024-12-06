@@ -1,7 +1,7 @@
 'use server'
 
 import { getSuperAdminStatus } from '@/lib/auth/permissions'
-import { createClient } from '@/utils/supabase/server'
+import { createClient } from '@/lib/utils/supabase/server'
 
 export async function updateUserRole(userId: string, role: string) {
   const isSuperAdmin = await getSuperAdminStatus()

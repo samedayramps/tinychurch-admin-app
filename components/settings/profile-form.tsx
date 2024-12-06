@@ -25,47 +25,21 @@ import {
 import type { Profile } from '@/lib/types/auth'
 import { AvatarUpload } from '@/components/avatar-upload'
 import { updateProfile } from '@/lib/actions/profile'
-
-const profileFormSchema = z.object({
-  first_name: z.string().min(2, {
-    message: "First name must be at least 2 characters.",
-  }),
-  last_name: z.string().min(2, {
-    message: "Last name must be at least 2 characters.",
-  }),
-  email: z.string().email({
-    message: "Please enter a valid email address.",
-  }),
-  alternative_email: z.string().email({
-    message: "Please enter a valid email address.",
-  }).optional().or(z.literal('')),
-  phone: z.string().optional(),
-  language: z.string().default('en'),
-  theme: z.string().default('light'),
-  notification_preferences: z.object({
-    email: z.boolean().default(true),
-    sms: z.boolean().default(false),
-    push: z.boolean().default(false),
-  }),
-})
-
-type ProfileFormValues = z.infer<typeof profileFormSchema>
+import { schemas } from '@/lib/validations/schemas'
 
 interface ProfileFormProps {
   profile: Profile
 }
 
 export function ProfileForm({ profile }: ProfileFormProps) {
-  const form = useForm<ProfileFormValues>({
-    resolver: zodResolver(profileFormSchema),
+  const form = useForm<z.infer<typeof schemas.profileForm>>({
+    resolver: zodResolver(schemas.profileForm),
     defaultValues: {
       first_name: profile.first_name || "",
       last_name: profile.last_name || "",
       email: profile.email || "",
       alternative_email: profile.alternative_email || "",
       phone: profile.phone || "",
-      language: profile.language || "en",
-      theme: profile.theme || "light",
       notification_preferences: profile.notification_preferences || {
         email: true,
         sms: false,
@@ -74,7 +48,7 @@ export function ProfileForm({ profile }: ProfileFormProps) {
     },
   })
 
-  async function onSubmit(data: ProfileFormValues) {
+  async function onSubmit(data: z.infer<typeof schemas.profileForm>) {
     try {
       const formData = new FormData()
       Object.entries(data).forEach(([key, value]) => {
@@ -191,7 +165,7 @@ export function ProfileForm({ profile }: ProfileFormProps) {
               <FormItem>
                 <FormLabel>Alternative Email</FormLabel>
                 <FormControl>
-                  <Input {...field} type="email" />
+                  <Input {...field} type="email" value={field.value || ''} />
                 </FormControl>
                 <FormDescription>
                   Optional secondary email address
@@ -208,54 +182,8 @@ export function ProfileForm({ profile }: ProfileFormProps) {
               <FormItem>
                 <FormLabel>Phone Number</FormLabel>
                 <FormControl>
-                  <Input {...field} type="tel" />
+                  <Input {...field} type="tel" value={field.value || ''} />
                 </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          <FormField
-            control={form.control}
-            name="language"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Language</FormLabel>
-                <Select onValueChange={field.onChange} defaultValue={field.value}>
-                  <FormControl>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select a language" />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    <SelectItem value="en">English</SelectItem>
-                    <SelectItem value="es">Spanish</SelectItem>
-                    <SelectItem value="fr">French</SelectItem>
-                  </SelectContent>
-                </Select>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          <FormField
-            control={form.control}
-            name="theme"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Theme</FormLabel>
-                <Select onValueChange={field.onChange} defaultValue={field.value}>
-                  <FormControl>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select a theme" />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    <SelectItem value="light">Light</SelectItem>
-                    <SelectItem value="dark">Dark</SelectItem>
-                    <SelectItem value="system">System</SelectItem>
-                  </SelectContent>
-                </Select>
                 <FormMessage />
               </FormItem>
             )}

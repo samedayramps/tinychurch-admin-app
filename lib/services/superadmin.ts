@@ -1,5 +1,5 @@
 // lib/services/superadmin.ts
-import { createClient } from '@/utils/supabase/server'
+import { createClient } from '@/lib/utils/supabase/server'
 import { ProfileRepository } from '@/lib/dal/repositories/profile'
 import { OrganizationRepository } from '@/lib/dal/repositories/organization'
 import { AuditLogRepository } from '@/lib/dal/repositories/audit-log'
@@ -61,11 +61,10 @@ export class SuperadminService {
     await settingsRepo.updateSettings({ limits }, { merge: true })
 
     await this.auditRepo.create({
-      category: 'system',
-      action: 'update_limits',
-      actor_id: actorId,
+      user_id: actorId,
+      event_type: 'profile_update',
+      details: `Updated organization limits: ${JSON.stringify(limits)}`,
       organization_id: orgId,
-      description: `Updated organization limits`,
       metadata: limits
     })
   }
@@ -76,11 +75,10 @@ export class SuperadminService {
     })
 
     await this.auditRepo.create({
-      category: 'system',
-      action: 'grant_superadmin',
-      actor_id: actorId,
-      target_id: userId,
-      description: 'Granted superadmin role'
+      user_id: actorId,
+      event_type: 'role_change',
+      details: `Granted superadmin role to user ${userId}`,
+      organization_id: null
     })
   }
 
@@ -90,12 +88,28 @@ export class SuperadminService {
     category?: string
     limit?: number
   } = {}) {
-    return this.auditRepo.findByCategory('system', {
-      limit: options.limit,
-      filter: {
-        created_at: options.startDate ? { gte: options.startDate } : undefined,
-        // Add other filters as needed
-      }
+    return this.auditRepo.findByCategory('role_change', {
+      limit: options.limit
     })
+  }
+
+  async auditAction(userId: string, action: string) {
+    await this.auditRepo.create({
+      user_id: userId,
+      event_type: 'profile_update',
+      details: action,
+      organization_id: null
+    })
+  }
+
+  async getAuditLogs(options: { limit?: number } = {}) {
+    try {
+      return await this.auditRepo.findByCategory('profile_update', { 
+        limit: options.limit 
+      })
+    } catch (error) {
+      console.error('Error fetching audit logs:', error)
+      return []
+    }
   }
 }

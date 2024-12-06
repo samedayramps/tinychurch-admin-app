@@ -24,48 +24,35 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { getAllOrganizations } from '@/lib/dal/repositories/organization'
+import { OrganizationRepository } from '@/lib/dal/repositories/organization'
+import { createClient } from '@/lib/utils/supabase/server'
 import { type Database } from '@/database.types'
+import { schemas } from '@/lib/validations/schemas'
 
 type UserRole = Database['public']['Enums']['user_role']
 
-const userInviteFormSchema = z.object({
-  email: z.string().email('Invalid email address'),
-  first_name: z.string().min(1, 'First name is required'),
-  last_name: z.string().min(1, 'Last name is required'),
-  is_active: z.boolean().default(true),
-  is_superadmin: z.boolean().default(false),
-  organization_id: z.string().min(1, 'Organization is required'),
-  role: z.enum(['admin', 'staff', 'ministry_leader', 'member', 'visitor'] as const).default('member'),
-})
-
-type FormData = z.infer<typeof userInviteFormSchema>
-
 interface UserInviteFormProps {
-  organizations: Array<{
-    id: string
-    name: string
-  }>
+  organizations: Array<{ id: string; name: string }>
 }
 
 export function UserInviteForm({ organizations }: UserInviteFormProps) {
   const { toast } = useToast()
   const router = useRouter()
   
-  const form = useForm<FormData>({
-    resolver: zodResolver(userInviteFormSchema),
+  const form = useForm<z.infer<typeof schemas.userInviteForm>>({
+    resolver: zodResolver(schemas.userInviteForm),
     defaultValues: {
-      email: '',
-      first_name: '',
-      last_name: '',
+      first_name: "",
+      last_name: "",
+      email: "",
+      role: "member",
       is_active: true,
       is_superadmin: false,
-      organization_id: '',
-      role: 'member',
+      organization_id: "",
     },
   })
 
-  async function onSubmit(values: FormData) {
+  async function onSubmit(values: z.infer<typeof schemas.userInviteForm>) {
     try {
       await inviteUserAction(values)
       toast({
@@ -138,11 +125,10 @@ export function UserInviteForm({ organizations }: UserInviteFormProps) {
               <Select 
                 onValueChange={field.onChange} 
                 defaultValue={field.value}
-                value={field.value}
               >
                 <FormControl>
                   <SelectTrigger>
-                    <SelectValue placeholder="Select an organization" />
+                    <SelectValue placeholder="Select an organization (required)" />
                   </SelectTrigger>
                 </FormControl>
                 <SelectContent>
@@ -166,8 +152,8 @@ export function UserInviteForm({ organizations }: UserInviteFormProps) {
               <FormLabel>Role</FormLabel>
               <Select 
                 onValueChange={field.onChange} 
-                defaultValue={field.value}
-                value={field.value}
+                defaultValue={field.value ?? ""}
+                value={field.value ?? ""}
               >
                 <FormControl>
                   <SelectTrigger>
@@ -200,7 +186,7 @@ export function UserInviteForm({ organizations }: UserInviteFormProps) {
               </div>
               <FormControl>
                 <Switch
-                  checked={field.value}
+                  checked={field.value ?? false}
                   onCheckedChange={field.onChange}
                 />
               </FormControl>
@@ -221,7 +207,7 @@ export function UserInviteForm({ organizations }: UserInviteFormProps) {
               </div>
               <FormControl>
                 <Switch
-                  checked={field.value}
+                  checked={field.value ?? false}
                   onCheckedChange={field.onChange}
                 />
               </FormControl>

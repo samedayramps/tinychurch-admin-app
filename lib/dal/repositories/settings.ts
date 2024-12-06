@@ -1,52 +1,70 @@
 import { BaseRepository } from '../base/repository'
-import type { OrganizationSettings } from './types'
 import type { Database } from '@/database.types'
+import { DalError } from '../errors'
 
-export class SettingsRepository extends BaseRepository<OrganizationSettings> {
+type OrganizationRow = Database['public']['Tables']['organizations']['Row']
+type JsonValue = string | number | boolean | null | JsonValue[] | { [key: string]: JsonValue }
+type Json = JsonValue
+
+interface OrganizationSettings {
+  features_enabled?: string[]
+  branding?: {
+    logo_url?: string
+    primary_color?: string
+    [key: string]: unknown
+  }
+  email_templates?: Record<string, unknown>
+  [key: string]: unknown
+}
+
+export class SettingsRepository extends BaseRepository<'organizations'> {
   protected tableName = 'organizations' as const
-  protected organizationField = 'id'
+  protected organizationField = 'id' as keyof OrganizationRow
 
-  async getSettings() {
+  async getSettings(): Promise<OrganizationSettings> {
     if (!this.context?.organizationId) {
-      throw new Error('Organization ID required')
+      throw DalError.operationFailed('getSettings', 'Organization ID required')
     }
 
-    const { data } = await (this.baseQuery() as any)
+    const { data, error } = await this.baseQuery()
       .eq('id', this.context.organizationId)
       .select('settings')
       .single()
 
-    return data?.settings || {}
+    if (error) throw error
+    return (data?.settings || {}) as OrganizationSettings
   }
 
   async updateSettings(
-    updates: Partial<OrganizationSettings['settings']>,
+    updates: Partial<OrganizationSettings>,
     options: { merge?: boolean } = {}
-  ) {
+  ): Promise<void> {
     if (!this.context?.organizationId) {
-      throw new Error('Organization ID required')
+      throw DalError.operationFailed('updateSettings', 'Organization ID required')
     }
 
+    let newSettings: Json
     if (options.merge) {
-      // Merge with existing settings
-      const current = await this.getSettings()
-      updates = {
-        ...current,
+      const currentSettings = await this.getSettings()
+      newSettings = {
+        ...currentSettings,
         ...updates
-      }
+      } as Json
+    } else {
+      newSettings = updates as Json
     }
 
-    await (this.baseQuery() as any)
-      .eq('id', this.context.organizationId)
-      .update({ settings: updates })
+    await this.update(this.context.organizationId, {
+      settings: newSettings
+    })
   }
 
-  async getFeatureFlags() {
+  async getFeatureFlags(): Promise<string[]> {
     const settings = await this.getSettings()
     return settings.features_enabled || []
   }
 
-  async updateFeatureFlags(features: string[]) {
+  async updateFeatureFlags(features: string[]): Promise<void> {
     const settings = await this.getSettings()
     await this.updateSettings({
       ...settings,
@@ -54,12 +72,12 @@ export class SettingsRepository extends BaseRepository<OrganizationSettings> {
     })
   }
 
-  async getBranding() {
+  async getBranding(): Promise<OrganizationSettings['branding']> {
     const settings = await this.getSettings()
     return settings.branding || {}
   }
 
-  async getEmailTemplates() {
+  async getEmailTemplates(): Promise<OrganizationSettings['email_templates']> {
     const settings = await this.getSettings()
     return settings.email_templates || {}
   }

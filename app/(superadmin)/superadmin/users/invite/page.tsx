@@ -1,8 +1,11 @@
 import { UserInviteForm } from '@/components/superadmin/users/user-invite-form'
-import { getAllOrganizations } from '@/lib/dal/repositories/organization'
+import { OrganizationRepository } from '@/lib/dal/repositories/organization'
+import { createClient } from '@/lib/utils/supabase/server'
 
 export default async function InviteUserPage() {
-  const organizations = await getAllOrganizations()
+  const supabase = await createClient()
+  const repository = new OrganizationRepository(supabase)
+  const organizations = await repository.findAll()
 
   if (!organizations) {
     throw new Error('Failed to load organizations')

@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback } from 'react'
-import { createClient } from '@/utils/supabase/client'
+import { createClient } from '@/lib/utils/supabase/client'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,

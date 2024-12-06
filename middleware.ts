@@ -1,24 +1,23 @@
 // middleware.ts
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
-import { stackMiddlewares } from './middleware/stack'
-import { loggingMiddleware } from './middleware/core/logging'
-import { rateLimitMiddleware } from './middleware/core/rateLimit'
-import { authMiddleware } from './middleware/auth/auth'
-import { sessionMiddleware } from './middleware/auth/session'
-import { impersonationMiddleware } from './middleware/auth/impersonation'
-import { superadminMiddleware } from './middleware/auth/superadmin'
-import { organizationMiddleware } from './middleware/tenant/organization'
-import { featureMiddleware } from './middleware/tenant/features'
-import { rbacMiddleware } from './middleware/auth/rbac'
-import { errorMiddleware } from './middleware/core/error'
-import { withMonitoring } from './middleware/utils/withMonitoring'
+import { stackMiddlewares } from '@/lib/middleware/stack'
+import { loggingMiddleware } from '@/lib/middleware/core/logging'
+import { rateLimitMiddleware } from '@/lib/middleware/core/rateLimit'
+import { authMiddleware } from '@/lib/middleware/auth/auth'
+import { sessionMiddleware } from '@/lib/middleware/auth/session'
+import { impersonationMiddleware } from '@/lib/middleware/auth/impersonation'
+import { superadminMiddleware } from '@/lib/middleware/auth/superadmin'
+import { organizationMiddleware } from '@/lib/middleware/tenant/organization'
+import { featureMiddleware } from '@/lib/middleware/tenant/features'
+import { rbacMiddleware } from '@/lib/middleware/auth/rbac'
+import { errorMiddleware } from '@/lib/middleware/core/error'
 
 export async function middleware(request: NextRequest) {
   const response = NextResponse.next()
 
   // Define public paths that should only use core middleware
-  const publicPaths = ['/sign-in', '/sign-up', '/forgot-password', '/auth/callback']
+  const publicPaths = ['/sign-in', '/sign-up', '/forgot-password', '/accept-invite', '/auth/callback']
   const isPublicPath = publicPaths.some(path => 
     request.nextUrl.pathname === path ||
     request.nextUrl.pathname.startsWith('/auth/')
@@ -26,9 +25,9 @@ export async function middleware(request: NextRequest) {
 
   // Core stack - always runs
   const coreStack = stackMiddlewares([
-    withMonitoring(errorMiddleware, 'error'),
-    withMonitoring(loggingMiddleware, 'logging'),
-    withMonitoring(rateLimitMiddleware, 'rateLimit'),
+    errorMiddleware,
+    loggingMiddleware,
+    rateLimitMiddleware,
   ])
 
   // Create a next function for the final middleware
@@ -39,9 +38,9 @@ export async function middleware(request: NextRequest) {
     errorMiddleware,
     loggingMiddleware,
     rateLimitMiddleware,
-    withMonitoring(authMiddleware, 'auth'),
-    withMonitoring(sessionMiddleware, 'session'),
-    withMonitoring(impersonationMiddleware, 'impersonation'),
+    authMiddleware,
+    sessionMiddleware,
+    impersonationMiddleware,
   ])
 
   // Organization stack - full context for org routes
@@ -51,9 +50,9 @@ export async function middleware(request: NextRequest) {
     rateLimitMiddleware,
     authMiddleware,
     sessionMiddleware,
-    withMonitoring(organizationMiddleware, 'organization'),
-    withMonitoring(rbacMiddleware, 'rbac'),
-    withMonitoring(featureMiddleware, 'features'),
+    organizationMiddleware,
+    rbacMiddleware,
+    featureMiddleware,
   ])
 
   // Superadmin stack - special privileges
@@ -63,7 +62,7 @@ export async function middleware(request: NextRequest) {
     rateLimitMiddleware,
     authMiddleware,
     sessionMiddleware,
-    withMonitoring(impersonationMiddleware, 'impersonation'),
+    impersonationMiddleware,
     superadminMiddleware,  // Sets x-is-superadmin
   ])
 
@@ -92,14 +91,6 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    /*
-     * Match all paths except:
-     * - api (API routes)
-     * - _next/static (static files)
-     * - _next/image (image optimization files)
-     * - favicon.ico (favicon file)
-     * - public files (public directory)
-     */
     '/((?!api|_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
   ],
 }

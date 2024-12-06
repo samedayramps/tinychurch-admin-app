@@ -1,18 +1,10 @@
 import type { BaseRepository } from '../base/repository'
-import type { 
-  Organization,
-  OrganizationMember,
-  Profile,
-  AuditLog,
-  Event,
-  OrganizationSettings
-} from './types'
+import type { Database } from '@/database.types'
 
 // Repository type definitions
-export type OrganizationRepository = BaseRepository<Organization>
-export type OrganizationMemberRepository = BaseRepository<OrganizationMember>
-export type UserRepository = BaseRepository<Profile>
-export type AuditLogRepository = BaseRepository<AuditLog>
-export type EventRepository = BaseRepository<Event>
-export type ProfileRepository = BaseRepository<Profile>
-export type SettingsRepository = BaseRepository<OrganizationSettings> 
+export type OrganizationRepository = BaseRepository<'organizations'>
+export type OrganizationMemberRepository = BaseRepository<'organization_members'>
+export type UserRepository = BaseRepository<'profiles'>
+export type AuditLogRepository = BaseRepository<'user_activity_logs'>
+export type ProfileRepository = BaseRepository<'profiles'>
+export type SettingsRepository = BaseRepository<'organization_settings'> 

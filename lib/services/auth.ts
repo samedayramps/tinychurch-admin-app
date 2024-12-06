@@ -1,5 +1,5 @@
 // lib/services/auth.ts
-import { createClient } from '@/utils/supabase/server'
+import { createClient } from '@/lib/utils/supabase/server'
 import { type AuthError } from '@supabase/supabase-js'
 import { ProfileRepository } from '@/lib/dal/repositories/profile'
 import { AuditLogRepository } from '@/lib/dal/repositories/audit-log'
@@ -34,10 +34,10 @@ export class AuthService {
 
     // Log the sign in
     await this.auditRepo.create({
-      category: 'auth',
-      action: 'sign_in',
-      actor_id: data.user.id,
-      description: 'User signed in'
+      user_id: data.user.id,
+      event_type: 'login',
+      details: 'User logged in',
+      organization_id: null
     })
 
     return data
@@ -48,10 +48,10 @@ export class AuthService {
 
     // Log the sign out
     await this.auditRepo.create({
-      category: 'auth',
-      action: 'sign_out',
-      actor_id: userId,
-      description: 'User signed out'
+      user_id: userId,
+      event_type: 'logout',
+      details: 'User logged out',
+      organization_id: null
     })
   }
 
@@ -68,10 +68,10 @@ export class AuthService {
     if (error) throw error
 
     await this.auditRepo.create({
-      category: 'auth',
-      action: 'password_update',
-      actor_id: userId,
-      description: 'User updated password'
+      user_id: userId,
+      event_type: 'password_change',
+      details: 'User updated password',
+      organization_id: null
     })
   }
 }

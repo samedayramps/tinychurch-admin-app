@@ -21,7 +21,16 @@ export function StopImpersonationButton() {
       
       const result = await stopImpersonation()
       
-      if (result.success) {
+      if ('error' in result) {
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: result.error || "Failed to stop impersonation",
+        })
+        return
+      }
+      
+      if ('success' in result) {
         toast({
           title: "Impersonation stopped",
           description: "You are no longer impersonating another user",
@@ -30,15 +39,6 @@ export function StopImpersonationButton() {
         // Force refresh and redirect
         router.refresh()
         router.push('/superadmin/dashboard')
-      } else {
-        // If failed, emit start event to revert UI
-        emitImpersonationEvent({ type: 'start' })
-        
-        toast({
-          variant: "destructive",
-          title: "Error",
-          description: result.error || "Failed to stop impersonation",
-        })
       }
     } catch (error) {
       // If error, emit start event to revert UI

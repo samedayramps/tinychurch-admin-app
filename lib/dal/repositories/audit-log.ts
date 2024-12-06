@@ -1,106 +1,68 @@
 // lib/dal/repositories/audit-log.ts
 import { BaseRepository } from '../base/repository'
 import type { Database } from '@/database.types'
+import type { SupabaseClient } from '@supabase/supabase-js'
+import type { TenantContext } from '../context/TenantContext'
+import { DalError } from '../errors'
 
-type AuditLogRow = Database['public']['Tables']['audit_logs']['Row']
-type AuditLogInsert = Database['public']['Tables']['audit_logs']['Insert']
+type ActivityLogRow = Database['public']['Tables']['user_activity_logs']['Row']
+type ActivityLogInsert = Database['public']['Tables']['user_activity_logs']['Insert']
 
-export class AuditLogRepository extends BaseRepository<AuditLogRow> {
-  protected tableName = 'audit_logs' as const
-  protected organizationField = 'organization_id'
+export class AuditLogRepository extends BaseRepository<'user_activity_logs'> {
+  protected tableName = 'user_activity_logs' as const
+  protected organizationField = 'organization_id' as keyof ActivityLogRow
 
-  async create(data: Omit<AuditLogInsert, 'id' | 'created_at'>) {
-    await this.verifyAccess('create')
-    
-    return this.measureOperation('create', async () => {
-      if (!this.context?.organizationId) {
-        throw new Error('Organization ID is required')
-      }
+  constructor(
+    protected readonly supabase: SupabaseClient<Database>,
+    protected readonly context?: TenantContext
+  ) {
+    super(supabase, context)
+  }
 
-      const insertData: AuditLogInsert = {
-        ...data,
-        organization_id: this.context.organizationId,
-        created_at: new Date().toISOString(),
-        actor_id: data.actor_id || null,
-        ip_address: null,
-        user_agent: null,
-        target_id: data.target_id || null,
-        target_type: data.target_type || null,
-        severity: data.severity || null,
-        metadata: data.metadata || null
-      }
-
-      const { data: created, error } = await this.supabase
+  async create(data: Omit<ActivityLogInsert, 'id' | 'created_at'>): Promise<ActivityLogRow> {
+    try {
+      const { data: log, error } = await this.supabase
         .from(this.tableName)
-        .insert(insertData)
+        .insert(data)
         .select()
         .single()
 
-      if (error) {
-        throw error
-      }
-
-      return created
-    })
+      if (error) throw error
+      return log
+    } catch (error) {
+      throw this.handleError(error, 'create')
+    }
   }
 
-  async findByCategory(category: Database['public']['Enums']['audit_category'], options: {
-    limit?: number
-    filter?: Record<string, any>
-  } = {}) {
-    await this.verifyAccess('read')
-    
-    return this.measureOperation('findByCategory', async () => {
-      if (!this.context?.organizationId) {
-        throw new Error('Organization ID is required')
-      }
+  async findByOrganization(organizationId: string): Promise<ActivityLogRow[]> {
+    try {
+      const { data, error } = await this.baseQuery()
+        .eq('organization_id', organizationId)
+        .order('created_at', { ascending: false })
 
-      let query = this.supabase
-        .from(this.tableName)
-        .select('*')
-        .eq('category', category)
-        .eq('organization_id', this.context.organizationId)
-        
-      if (options.filter) {
-        Object.entries(options.filter).forEach(([key, value]) => {
-          query = query.eq(key, value)
-        })
-      }
-      
-      if (options.limit) {
+      if (error) throw error
+      return data || []
+    } catch (error) {
+      throw this.handleError(error, 'findByOrganization')
+    }
+  }
+
+  async findByCategory(category: string, options?: { limit?: number }): Promise<ActivityLogRow[]> {
+    try {
+      let query = this.baseQuery()
+        .eq('event_type', category)
+        .order('created_at', { ascending: false })
+
+      if (options?.limit) {
         query = query.limit(options.limit)
       }
 
-      const { data, error } = await query.order('created_at', { ascending: false })
-      
-      if (error) {
-        throw error
-      }
+      const { data, error } = await query
 
-      return data
-    })
-  }
-
-  async findRecent(limit = 10) {
-    await this.verifyAccess('read')
-    
-    return this.measureOperation('findRecent', async () => {
-      if (!this.context?.organizationId) {
-        throw new Error('Organization ID is required')
-      }
-
-      const { data, error } = await this.supabase
-        .from(this.tableName)
-        .select('*')
-        .eq('organization_id', this.context.organizationId)
-        .order('created_at', { ascending: false })
-        .limit(limit)
-
-      if (error) {
-        throw error
-      }
-
-      return data
-    })
+      if (error) throw error
+      return data || []
+    } catch (error) {
+      throw this.handleError(error, 'findByCategory')
+    }
   }
 }

@@ -3,7 +3,7 @@ import { getAuditLogs } from '@/lib/dal/audit'
 import { formatDistanceToNow } from 'date-fns'
 import type { Database } from '@/database.types'
 
-type AuditLog = Database['public']['Tables']['audit_logs']['Row']
+type ActivityLog = Database['public']['Tables']['user_activity_logs']['Row']
 
 export async function RecentActivity() {
   const logs = await getAuditLogs(5)
@@ -17,12 +17,12 @@ export async function RecentActivity() {
       </CardHeader>
       <CardContent>
         <div className="space-y-4">
-          {logs.map((log: AuditLog) => (
+          {logs.map((log: ActivityLog) => (
             <div key={log.id} className="flex items-start justify-between">
               <div>
-                <p className="text-sm font-medium">{log.description}</p>
+                <p className="text-sm font-medium">{log.details}</p>
                 <p className="text-sm text-muted-foreground">
-                  {log.category} • {log.action}
+                  {log.event_type}
                 </p>
               </div>
               <p className="text-sm text-muted-foreground">

@@ -1,5 +1,5 @@
 import 'server-only'
-import { createClient } from '@/utils/supabase/server'
+import { createClient } from '@/lib/utils/supabase/server'
 import { cache } from 'react'
 import { type Database } from '@/database.types'
 
@@ -84,4 +84,3 @@ export * from './repositories/organization'
 export * from './repositories/settings'
 export * from './repositories/profile'
 export * from './repositories/audit-log'
-export * from './repositories/event'

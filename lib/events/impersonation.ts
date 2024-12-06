@@ -14,4 +14,4 @@ export function emitImpersonationEvent(detail: ImpersonationEventDetail) {
     composed: true
   })
   window.dispatchEvent(event)
-} 
+}
