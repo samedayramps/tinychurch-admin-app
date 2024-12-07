@@ -323,36 +323,39 @@ export type Database = {
       user_activity_logs: {
         Row: {
           created_at: string | null
+          deleted_at: string | null
           details: string
-          event_type: Database["public"]["Enums"]["activity_event_type"]
+          event_type: Database["public"]["Enums"]["audit_event_type"]
           id: string
-          ip_address: string | null
           metadata: Json | null
           organization_id: string | null
-          user_agent: string | null
-          user_id: string
+          severity: Database["public"]["Enums"]["audit_severity"] | null
+          updated_at: string | null
+          user_id: string | null
         }
         Insert: {
           created_at?: string | null
+          deleted_at?: string | null
           details: string
-          event_type: Database["public"]["Enums"]["activity_event_type"]
+          event_type: Database["public"]["Enums"]["audit_event_type"]
           id?: string
-          ip_address?: string | null
           metadata?: Json | null
           organization_id?: string | null
-          user_agent?: string | null
-          user_id: string
+          severity?: Database["public"]["Enums"]["audit_severity"] | null
+          updated_at?: string | null
+          user_id?: string | null
         }
         Update: {
           created_at?: string | null
+          deleted_at?: string | null
           details?: string
-          event_type?: Database["public"]["Enums"]["activity_event_type"]
+          event_type?: Database["public"]["Enums"]["audit_event_type"]
           id?: string
-          ip_address?: string | null
           metadata?: Json | null
           organization_id?: string | null
-          user_agent?: string | null
-          user_id?: string
+          severity?: Database["public"]["Enums"]["audit_severity"] | null
+          updated_at?: string | null
+          user_id?: string | null
         }
         Relationships: [
           {
@@ -360,6 +363,13 @@ export type Database = {
             columns: ["organization_id"]
             isOneToOne: false
             referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_activity_logs_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]

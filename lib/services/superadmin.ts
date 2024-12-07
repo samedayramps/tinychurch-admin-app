@@ -7,6 +7,11 @@ import { SettingsRepository } from '@/lib/dal/repositories/settings'
 import { type SupabaseClient } from '@supabase/supabase-js'
 import { TenantContext } from '@/lib/dal/context/TenantContext'
 import { type UserRole } from '@/lib/types/auth'
+import { getEventCategory } from '@/lib/types/audit'
+import type { Database } from '@/database.types'
+import type { CreateAuditLogParams } from '@/lib/types/audit'
+
+type ProfileRow = Database['public']['Tables']['profiles']['Row']
 
 export class SuperadminService {
   private supabase: SupabaseClient
@@ -62,7 +67,7 @@ export class SuperadminService {
 
     await this.auditRepo.create({
       user_id: actorId,
-      event_type: 'profile_update',
+      event_type: 'system',
       details: `Updated organization limits: ${JSON.stringify(limits)}`,
       organization_id: orgId,
       metadata: limits
@@ -76,7 +81,7 @@ export class SuperadminService {
 
     await this.auditRepo.create({
       user_id: actorId,
-      event_type: 'role_change',
+      event_type: 'system',
       details: `Granted superadmin role to user ${userId}`,
       organization_id: null
     })
@@ -96,7 +101,7 @@ export class SuperadminService {
   async auditAction(userId: string, action: string) {
     await this.auditRepo.create({
       user_id: userId,
-      event_type: 'profile_update',
+      event_type: 'user_action',
       details: action,
       organization_id: null
     })
@@ -111,5 +116,42 @@ export class SuperadminService {
       console.error('Error fetching audit logs:', error)
       return []
     }
+  }
+
+  async updateUserProfile(userId: string, data: Partial<ProfileRow>) {
+    await this.profileRepo.update(userId, data)
+
+    await this.auditRepo.create({
+      user_id: userId,
+      event_type: 'user_action',
+      details: `Profile updated for user ${userId}`,
+      metadata: { changes: data }
+    })
+  }
+
+  async updateUserRole(userId: string, role: UserRole) {
+    const { data: member } = await this.supabase
+      .from('organization_members')
+      .select('id, role')
+      .eq('user_id', userId)
+      .single()
+
+    if (member) {
+      await this.supabase
+        .from('organization_members')
+        .update({ role })
+        .eq('id', member.id)
+    }
+
+    await this.auditRepo.create({
+      user_id: userId,
+      event_type: 'system',
+      details: `Role changed to ${role} for user ${userId}`,
+      metadata: {
+        new_role: role,
+        previous_role: member?.role ?? null,
+        updated_at: new Date().toISOString()
+      }
+    })
   }
 }

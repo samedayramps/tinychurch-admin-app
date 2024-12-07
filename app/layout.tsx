@@ -7,7 +7,16 @@ import { ImpersonationBorder } from '@/components/impersonation/border'
 
 export const metadata = {
   title: 'TinyChurch Admin',
-  description: 'Church Management System',
+  description: 'Administrative application for church management',
+  openGraph: {
+    title: 'TinyChurch Admin',
+    description: 'Administrative application for church management',
+  },
+  twitter: {
+    card: 'summary',
+    title: 'TinyChurch Admin',
+    description: 'Administrative application for church management',
+  },
 }
 
 export default async function RootLayout({

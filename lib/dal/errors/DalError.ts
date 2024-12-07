@@ -30,8 +30,16 @@ export class DalError extends Error {
         return 'Operation failed, please try again'
       case 'VALIDATION_ERROR':
         return 'Invalid data provided'
-      default:
+      case 'DATABASE_ERROR':
+        return 'A database error occurred'
+      case 'QUERY_ERROR':
+        return 'Failed to execute query'
+      case 'INVALID_OPERATION':
+        return 'Invalid operation attempted'
+      default: {
+        const exhaustiveCheck: never = this.code
         return 'An unexpected error occurred'
+      }
     }
   }
 } 

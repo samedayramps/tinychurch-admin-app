@@ -3,6 +3,7 @@ import { createClient } from '@/lib/utils/supabase/server'
 import { ProfileDTO } from '../dto'
 import type { Database } from '@/database.types'
 import { DalError } from '../errors'
+import type { ErrorCode } from '../errors/types'
 
 export const getCurrentUser = cache(async () => {
   const supabase = await createClient()
@@ -22,7 +23,10 @@ export const getCurrentUser = cache(async () => {
 export const requireAuth = cache(async () => {
   const user = await getCurrentUser()
   if (!user) {
-    throw new DalError('Authentication required', 'UNAUTHORIZED')
+    throw DalError.operationFailed('requireAuth', {
+      error: 'Authentication required',
+      details: 'User must be authenticated to access this resource'
+    })
   }
   return user
 })
@@ -30,7 +34,10 @@ export const requireAuth = cache(async () => {
 export const requireSuperAdmin = cache(async () => {
   const user = await requireAuth()
   if (!user.isSuperAdmin) {
-    throw DalError.unauthorized()
+    throw DalError.operationFailed('requireSuperAdmin', {
+      error: 'Permission denied',
+      details: 'Superadmin access required'
+    })
   }
   return user
 }) 

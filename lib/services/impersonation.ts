@@ -4,6 +4,7 @@ import { AuditLogRepository } from '@/lib/dal/repositories/audit-log'
 import { createClient } from '@/lib/utils/supabase/server'
 import { ImpersonationCookies } from '@/lib/utils/impersonation-cookies'
 import { ImpersonationStartResult, ImpersonationStopResult } from '@/lib/types/impersonation'
+import { getEventCategory } from '@/lib/types/audit'
 
 export class ImpersonationService {
   private impersonationRepo: ImpersonationRepository
@@ -35,9 +36,10 @@ export class ImpersonationService {
       // Log the event
       await this.auditRepo.create({
         user_id: adminId,
-        event_type: 'login',
+        event_type: 'auth',
         details: `Admin ${adminId} started impersonating user ${targetUserId}`,
-        organization_id: null
+        organization_id: organizationId,
+        metadata: { impersonated_user_id: targetUserId }
       })
 
       // Use cookie utility instead of direct manipulation
@@ -59,7 +61,7 @@ export class ImpersonationService {
         // Log the event
         await this.auditRepo.create({
           user_id: adminId,
-          event_type: 'logout',
+          event_type: 'auth',
           details: `Admin ${adminId} stopped impersonating user ${targetUserId}`,
           organization_id: null
         })

@@ -72,7 +72,16 @@ export class ImpersonationRepository extends BaseRepositoryBase<'profiles'> {
     )
 
     if (updateError) {
-      throw new DalError('Failed to update user metadata', 'TRANSACTION_ERROR')
+      throw new DalError(
+        `Failed to update user metadata: ${updateError.message}`,
+        'DATABASE_ERROR',
+        {
+          organizationId,
+          actorId,
+          targetId,
+          error: updateError.message
+        }
+      )
     }
 
     return { actor, target }
@@ -89,7 +98,14 @@ export class ImpersonationRepository extends BaseRepositoryBase<'profiles'> {
     )
 
     if (error) {
-      throw new DalError('Failed to clear impersonation metadata', 'TRANSACTION_ERROR')
+      throw new DalError(
+        `Failed to clear impersonation metadata: ${error.message}`,
+        'DATABASE_ERROR',
+        {
+          actorId,
+          error: error.message
+        }
+      )
     }
   }
 
@@ -110,6 +126,6 @@ export class ImpersonationRepository extends BaseRepositoryBase<'profiles'> {
     organizationId: string
     metadata?: Record<string, any>
   }) {
-
+    // Implementation here
   }
 }
