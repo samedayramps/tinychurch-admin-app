@@ -1,3 +1,4 @@
+export * from './group'
 export * from './organization'
 export * from './organization-member'
 export * from './user'

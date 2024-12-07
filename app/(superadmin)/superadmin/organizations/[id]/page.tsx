@@ -1,10 +1,12 @@
 import { notFound } from 'next/navigation'
 import { OrganizationRepository } from '@/lib/dal/repositories/organization'
+import { GroupRepository } from '@/lib/dal/repositories/group'
 import { createClient } from '@/lib/utils/supabase/server'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { OrganizationProfileTab } from '@/components/superadmin/organizations/organization-profile-tab'
 import { OrganizationMembersTab } from '@/components/superadmin/organizations/organization-members-tab'
 import { OrganizationSettingsTab } from '@/components/superadmin/organizations/organization-settings-tab'
+import { OrganizationGroupsTab } from '@/components/superadmin/organizations/organization-groups-tab'
 import { ActivityLog } from '@/components/activity-log'
 
 interface PageProps {
@@ -15,13 +17,16 @@ export default async function OrganizationPage({ params }: PageProps) {
   const resolvedParams = await params
   const supabase = await createClient()
   const repository = new OrganizationRepository(supabase)
+  const groupRepo = new GroupRepository(supabase)
   
   const organization = await repository.findWithStats(resolvedParams.id)
-  
   if (!organization) {
     notFound()
   }
 
+  // Get organization's groups
+  const groups = await groupRepo.getOrganizationGroups(organization.id)
+  
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
@@ -37,6 +42,7 @@ export default async function OrganizationPage({ params }: PageProps) {
         <TabsList>
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="members">Members</TabsTrigger>
+          <TabsTrigger value="groups">Groups</TabsTrigger>
           <TabsTrigger value="settings">Settings</TabsTrigger>
           <TabsTrigger value="activity">Activity</TabsTrigger>
         </TabsList>
@@ -47,6 +53,13 @@ export default async function OrganizationPage({ params }: PageProps) {
 
         <TabsContent value="members">
           <OrganizationMembersTab organizationId={organization.id} />
+        </TabsContent>
+
+        <TabsContent value="groups">
+          <OrganizationGroupsTab 
+            organizationId={organization.id}
+            groups={groups}
+          />
         </TabsContent>
 
         <TabsContent value="settings">

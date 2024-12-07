@@ -9,37 +9,152 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      activity_logs: {
+      group_join_requests: {
         Row: {
-          created_at: string | null
-          details: string
-          event_type: string
+          group_id: string
           id: string
-          metadata: Json | null
-          organization_id: string | null
-          user_id: string | null
+          message: string | null
+          processed_at: string | null
+          processed_by: string | null
+          requested_at: string | null
+          status: string
+          user_id: string
         }
         Insert: {
-          created_at?: string | null
-          details: string
-          event_type: string
+          group_id: string
           id?: string
-          metadata?: Json | null
-          organization_id?: string | null
-          user_id?: string | null
+          message?: string | null
+          processed_at?: string | null
+          processed_by?: string | null
+          requested_at?: string | null
+          status?: string
+          user_id: string
         }
         Update: {
-          created_at?: string | null
-          details?: string
-          event_type?: string
+          group_id?: string
           id?: string
-          metadata?: Json | null
-          organization_id?: string | null
-          user_id?: string | null
+          message?: string | null
+          processed_at?: string | null
+          processed_by?: string | null
+          requested_at?: string | null
+          status?: string
+          user_id?: string
         }
         Relationships: [
           {
-            foreignKeyName: "activity_logs_organization_id_fkey"
+            foreignKeyName: "group_join_requests_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "groups"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "group_join_requests_processed_by_fkey"
+            columns: ["processed_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "group_join_requests_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      group_members: {
+        Row: {
+          deleted_at: string | null
+          group_id: string
+          id: string
+          joined_at: string | null
+          notifications_enabled: boolean | null
+          role: Database["public"]["Enums"]["group_member_role"]
+          status: string
+          user_id: string
+        }
+        Insert: {
+          deleted_at?: string | null
+          group_id: string
+          id?: string
+          joined_at?: string | null
+          notifications_enabled?: boolean | null
+          role?: Database["public"]["Enums"]["group_member_role"]
+          status?: string
+          user_id: string
+        }
+        Update: {
+          deleted_at?: string | null
+          group_id?: string
+          id?: string
+          joined_at?: string | null
+          notifications_enabled?: boolean | null
+          role?: Database["public"]["Enums"]["group_member_role"]
+          status?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "group_members_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "groups"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "group_members_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      groups: {
+        Row: {
+          created_at: string | null
+          deleted_at: string | null
+          description: string | null
+          id: string
+          max_members: number | null
+          name: string
+          organization_id: string
+          settings: Json | null
+          type: Database["public"]["Enums"]["group_type"]
+          updated_at: string | null
+          visibility: Database["public"]["Enums"]["group_visibility"]
+        }
+        Insert: {
+          created_at?: string | null
+          deleted_at?: string | null
+          description?: string | null
+          id?: string
+          max_members?: number | null
+          name: string
+          organization_id: string
+          settings?: Json | null
+          type?: Database["public"]["Enums"]["group_type"]
+          updated_at?: string | null
+          visibility?: Database["public"]["Enums"]["group_visibility"]
+        }
+        Update: {
+          created_at?: string | null
+          deleted_at?: string | null
+          description?: string | null
+          id?: string
+          max_members?: number | null
+          name?: string
+          organization_id?: string
+          settings?: Json | null
+          type?: Database["public"]["Enums"]["group_type"]
+          updated_at?: string | null
+          visibility?: Database["public"]["Enums"]["group_visibility"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "groups_organization_id_fkey"
             columns: ["organization_id"]
             isOneToOne: false
             referencedRelation: "organizations"
@@ -213,8 +328,8 @@ export type Database = {
           description: string | null
           id: string
           name: string
-          settings: Json | null
           slug: string
+          settings: Json | null
           status: string | null
           timezone: string | null
           updated_at: string | null
@@ -229,8 +344,8 @@ export type Database = {
           description?: string | null
           id?: string
           name: string
-          settings?: Json | null
           slug: string
+          settings?: Json | null
           status?: string | null
           timezone?: string | null
           updated_at?: string | null
@@ -245,8 +360,8 @@ export type Database = {
           description?: string | null
           id?: string
           name?: string
-          settings?: Json | null
           slug?: string
+          settings?: Json | null
           status?: string | null
           timezone?: string | null
           updated_at?: string | null
@@ -379,6 +494,14 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      add_group_member: {
+        Args: {
+          p_group_id: string
+          p_user_id: string
+          p_role?: Database["public"]["Enums"]["group_member_role"]
+        }
+        Returns: string
+      }
       aggregate_audit_metrics: {
         Args: {
           operation_name: string
@@ -623,6 +746,14 @@ export type Database = {
         }
         Returns: Json
       }
+      process_join_request: {
+        Args: {
+          p_request_id: string
+          p_status: string
+          p_processor_id: string
+        }
+        Returns: boolean
+      }
       set_limit: {
         Args: {
           "": number
@@ -675,8 +806,18 @@ export type Database = {
         | "performance"
         | "error"
         | "user_action"
+        | "profile_update"
+        | "role_change"
       audit_severity: "info" | "warning" | "error" | "critical"
       auth_status: "invited" | "active" | "suspended" | "inactive" | "deleted"
+      group_member_role: "leader" | "member"
+      group_type:
+        | "ministry"
+        | "small_group"
+        | "committee"
+        | "service_team"
+        | "other"
+      group_visibility: "public" | "private" | "hidden"
       user_role: "admin" | "staff" | "ministry_leader" | "member" | "visitor"
       visibility_level: "public" | "members_only" | "staff_only" | "private"
     }

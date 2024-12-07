@@ -2,10 +2,10 @@ import { BaseRepository } from '../base/repository'
 import type { Database } from '@/database.types'
 import type { SupabaseClient } from '@supabase/supabase-js'
 
-type ActivityLog = Database['public']['Tables']['activity_logs']['Row']
+type ActivityLog = Database['public']['Tables']['user_activity_logs']['Row']
 
-export class ActivityLogRepository extends BaseRepository<'activity_logs'> {
-  protected tableName = 'activity_logs' as const
+export class ActivityLogRepository extends BaseRepository<'user_activity_logs'> {
+  protected tableName = 'user_activity_logs' as const
   protected organizationField = 'organization_id' as keyof ActivityLog
 
   async getRecent(options: {

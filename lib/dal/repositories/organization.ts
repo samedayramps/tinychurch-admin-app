@@ -1,17 +1,16 @@
 // lib/dal/repositories/organization.ts
 import { BaseRepository } from '../base/repository'
 import type { Database } from '@/database.types'
+import type{ Json } from '@/database.types'
 import { DalError } from '../errors'
+import { OrganizationSettingsRepository } from './organization-settings'
 
 type OrganizationRow = Database['public']['Tables']['organizations']['Row']
 type OrganizationLimitRow = Database['public']['Tables']['organization_limits']['Row']
 
 export interface OrganizationWithStats extends Omit<OrganizationRow, 'settings'> {
   memberCount: number
-  settings: {
-    features_enabled?: string[]
-    [key: string]: any
-  } | null
+  settings: Record<string, Json> | null
 }
 
 export class OrganizationRepository extends BaseRepository<'organizations'> {
@@ -35,28 +34,31 @@ export class OrganizationRepository extends BaseRepository<'organizations'> {
 
   async findWithStats(id: string): Promise<OrganizationWithStats | null> {
     try {
-      const { data, error } = await this.supabase
-        .from(this.tableName)
-        .select(`
-          *,
-          organization_members(count)
-        `)
-        .filter('id', 'eq', id)
-        .single()
+      const [org, settings, memberCount] = await Promise.all([
+        this.findById(id),
+        new OrganizationSettingsRepository(this.supabase).getSettings(id),
+        this.getMemberCount(id)
+      ])
 
-      if (error) throw error
-      if (!data) return null
+      if (!org) return null
 
       return {
-        ...data,
-        memberCount: data.organization_members?.[0]?.count || 0,
-        settings: typeof data.settings === 'string' 
-          ? JSON.parse(data.settings)
-          : data.settings
+        ...org,
+        memberCount,
+        settings
       }
     } catch (error) {
-      throw DalError.operationFailed('findWithStats', error)
+      throw this.handleError(error, 'findWithStats')
     }
+  }
+
+  private async getMemberCount(organizationId: string): Promise<number> {
+    const { count } = await this.supabase
+      .from('organization_members')
+      .select('*', { count: 'exact', head: true })
+      .eq('organization_id', organizationId)
+
+    return count || 0
   }
 
   async findAll(): Promise<OrganizationWithStats[]> {
@@ -70,16 +72,20 @@ export class OrganizationRepository extends BaseRepository<'organizations'> {
 
       if (error) throw error
 
-      return (data || []).map(org => ({
-        ...org,
-        memberCount: org.organization_members?.[0]?.count || 0,
-        settings: typeof org.settings === 'string' 
-          ? JSON.parse(org.settings)
-          : org.settings as {
-              features_enabled?: string[]
-              [key: string]: any
-            } | null
-      }))
+      const orgsWithSettings = await Promise.all(
+        (data || []).map(async (org) => {
+          const settings = await new OrganizationSettingsRepository(this.supabase)
+            .getSettings(org.id)
+
+          return {
+            ...org,
+            memberCount: org.organization_members?.[0]?.count || 0,
+            settings
+          }
+        })
+      )
+
+      return orgsWithSettings
     } catch (error) {
       throw DalError.operationFailed('findAll', error)
     }
@@ -119,6 +125,21 @@ export class OrganizationRepository extends BaseRepository<'organizations'> {
       return data || []
     } catch (error) {
       throw this.handleError(error, 'findByLimits')
+    }
+  }
+
+  async findById(id: string): Promise<OrganizationRow | null>{
+    try {
+      const { data, error } = await this.supabase
+        .from(this.tableName)
+        .select('*')
+        .eq('id', id)
+        .maybeSingle()
+
+      if (error) throw error
+      return data
+    } catch (error) {
+      throw DalError.operationFailed('findById', error)
     }
   }
 }
