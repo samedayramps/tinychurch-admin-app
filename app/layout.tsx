@@ -6,7 +6,7 @@ import { ImpersonationProvider } from '@/lib/contexts/impersonation-context'
 import { ImpersonationBorder } from '@/components/impersonation/border'
 
 export const metadata = {
-  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'),
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || 'https://tinychurch.app'),
   title: 'TinyChurch Admin',
   description: 'Administrative application for church management',
   openGraph: {
