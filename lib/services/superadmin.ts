@@ -3,7 +3,7 @@ import { createClient } from '@/lib/utils/supabase/server'
 import { ProfileRepository } from '@/lib/dal/repositories/profile'
 import { OrganizationRepository } from '@/lib/dal/repositories/organization'
 import { AuditLogRepository } from '@/lib/dal/repositories/audit-log'
-import { SettingsRepository } from '@/lib/dal/repositories/settings'
+import { OrganizationSettingsRepository } from '@/lib/dal/repositories/organization-settings'
 import { type SupabaseClient } from '@supabase/supabase-js'
 import { TenantContext } from '@/lib/dal/context/TenantContext'
 import { type UserRole } from '@/lib/types/auth'
@@ -62,8 +62,11 @@ export class SuperadminService {
       'superadmin' as UserRole
     )
     
-    const settingsRepo = new SettingsRepository(this.supabase, tenantContext)
-    await settingsRepo.updateSettings({ limits }, { merge: true })
+    const settingsRepo = new OrganizationSettingsRepository(this.supabase, tenantContext)
+    
+    await settingsRepo.setSettings(orgId, {
+      limits: limits
+    })
 
     await this.auditRepo.create({
       user_id: actorId,

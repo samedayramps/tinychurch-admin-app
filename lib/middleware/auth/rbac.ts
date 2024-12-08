@@ -15,6 +15,25 @@ export const rbacMiddleware: MiddlewareFactory = async (req, res, next) => {
     const orgId = req.headers.get('x-organization-id')
     const { supabase, response } = createMiddlewareClient(req)
     
+    // Check if user is superadmin first
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('is_superadmin')
+      .eq('id', userId)
+      .single()
+
+    if (profile?.is_superadmin) {
+      // Superadmin has all permissions
+      const requestHeaders = new Headers(req.headers)
+      requestHeaders.set('x-user-role', 'superadmin')
+      requestHeaders.set('x-is-superadmin', 'true')
+      
+      return next(
+        new NextRequest(req.url, { headers: requestHeaders }),
+        response
+      )
+    }
+
     const { data: membership } = await supabase
       .from('organization_members')
       .select('role')

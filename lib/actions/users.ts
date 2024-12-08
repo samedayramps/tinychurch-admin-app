@@ -4,6 +4,7 @@ import { createClient } from '@/lib/utils/supabase/server'
 import { revalidatePath } from 'next/cache'
 import { getCurrentUser } from '@/lib/dal'
 import { type Database } from '@/database.types'
+import { getOrganizationInvitationEmailContent } from '@/lib/utils/email'
 
 export async function updateUserAction(userId: string, data: {
   first_name: string
@@ -99,65 +100,87 @@ export async function updateUserAction(userId: string, data: {
 }
 
 export async function deleteUserAction(userId: string) {
-  const supabase = await createClient(true)
-  const currentUser = await getCurrentUser()
-  
-  if (!currentUser?.is_superadmin) {
-    throw new Error('Unauthorized - Superadmin access required')
-  }
-
-  // Get user info for audit log
-  const { data: user } = await supabase
-    .from('profiles')
-    .select(`
-      email,
-      organization_members (
-        organization_id
-      )
-    `)
-    .eq('id', userId)
-    .single()
-
-  if (!user) {
-    throw new Error('User not found')
-  }
-
-  const now = new Date().toISOString()
-
-  // Soft delete in correct order
-  // 1. Soft delete organization memberships
-  const { error: membershipError } = await supabase
-    .from('organization_members')
-    .update({ 
-      deleted_at: now
-    })
-    .eq('user_id', userId)
+  try {
+    // 1. Create admin client and verify superadmin status
+    const supabase = await createClient(true) // Using service role key
+    const currentUser = await getCurrentUser()
     
-  if (membershipError) throw membershipError
-
-  // 2. Soft delete profile
-  const { error: profileError } = await supabase
-    .from('profiles')
-    .update({ 
-      deleted_at: now,
-      is_active: false 
-    })
-    .eq('id', userId)
-    
-  if (profileError) throw profileError
-
-  // 3. Ban the auth user using a valid duration format (100 years)
-  const { error: authError } = await supabase.auth.admin.updateUserById(
-    userId,
-    { 
-      ban_duration: '876000h' // 100 years in hours
+    if (!currentUser?.is_superadmin) {
+      throw new Error('Unauthorized - Superadmin access required')
     }
-  )
-  
-  if (authError) throw authError
 
+    // 2. Get user info for audit log
+    const { data: user } = await supabase
+      .from('profiles')
+      .select(`
+        email,
+        organization_members (
+          organization_id
+        )
+      `)
+      .eq('id', userId)
+      .single()
 
-  revalidatePath('/superadmin/users')
+    if (!user) {
+      throw new Error('User not found')
+    }
+
+    const now = new Date().toISOString()
+
+    // 3. Soft delete in correct order
+    // First remove organization memberships
+    const { error: membershipError } = await supabase
+      .from('organization_members')
+      .update({ 
+        deleted_at: now,
+        updated_at: now
+      })
+      .eq('user_id', userId)
+    
+    if (membershipError) throw membershipError
+
+    // Then update profile status
+    const { error: profileError } = await supabase
+      .from('profiles')
+      .update({ 
+        deleted_at: now,
+        is_active: false,
+        status: 'deleted',
+        updated_at: now
+      })
+      .eq('id', userId)
+    
+    if (profileError) throw profileError
+
+    // Finally disable auth user
+    const { error: authError } = await supabase.auth.admin.updateUserById(
+      userId,
+      { 
+        ban_duration: '876000h' // 100 years
+      }
+    )
+    
+    if (authError) throw authError
+
+    // 4. Create audit log entry
+    await supabase.from('audit_logs').insert({
+      user_id: currentUser.id,
+      target_user_id: userId,
+      event_type: 'user.deleted',
+      details: `User ${user.email} deleted by ${currentUser.email}`,
+      metadata: {
+        deleted_at: now,
+        deleted_by: currentUser.id
+      }
+    })
+
+    revalidatePath('/superadmin/users')
+    return { success: true }
+
+  } catch (error) {
+    console.error('Delete user error:', error)
+    throw error
+  }
 }
 
 export async function createUserAction(data: {
@@ -212,32 +235,43 @@ export async function inviteUserAction(data: {
     throw new Error('Unauthorized - Superadmin access required')
   }
 
-  // Generate temporary password
-  const tempPassword = Math.random().toString(36).slice(-8)
-  const full_name = `${data.first_name} ${data.last_name}`.trim()
+  // Get organization name
+  const { data: organization } = await supabase
+    .from('organizations')
+    .select('name')
+    .eq('id', data.organization_id)
+    .single()
+
+  if (!organization) throw new Error('Organization not found')
+
+  // Get the current user's profile
+  const { data: inviterProfile } = await supabase
+    .from('profiles')
+    .select('email, full_name')
+    .eq('id', currentUser.id)
+    .single()
+
+  if (!inviterProfile) throw new Error('Inviter profile not found')
 
   // Send invitation using Supabase's built-in invite function
   const { data: authUser, error: inviteError } = await supabase.auth.admin.inviteUserByEmail(
     data.email,
     {
       data: {
-        invited_by: currentUser.email,
-        temp_password: tempPassword,
+        organization_id: data.organization_id,
+        organization_name: organization.name,
+        role: data.role,
         first_name: data.first_name,
         last_name: data.last_name,
-        full_name,
-        is_active: data.is_active,
-        is_superadmin: data.is_superadmin,
-        organization_id: data.organization_id,
-        role: data.role
+        invited_by: inviterProfile.full_name || inviterProfile.email
       },
-      redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/callback`
+      redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/setup`
     }
   )
 
   if (inviteError) throw inviteError
 
-  // Create profile after successful invite
+  // Create profile
   const { error: profileError } = await supabase
     .from('profiles')
     .insert({
@@ -245,11 +279,12 @@ export async function inviteUserAction(data: {
       email: data.email,
       first_name: data.first_name,
       last_name: data.last_name,
-      full_name,
+      full_name: `${data.first_name} ${data.last_name}`.trim(),
       is_active: data.is_active,
-      is_superadmin: data.is_superadmin
+      is_superadmin: data.is_superadmin,
+      status: 'invited'
     })
-    
+
   if (profileError) throw profileError
 
   // Create organization membership
@@ -258,12 +293,10 @@ export async function inviteUserAction(data: {
     .insert({
       user_id: authUser.user.id,
       organization_id: data.organization_id,
-      role: data.role,
-      joined_date: new Date().toISOString()
+      role: data.role
     })
 
   if (membershipError) throw membershipError
-
 
   revalidatePath('/superadmin/users')
 }  

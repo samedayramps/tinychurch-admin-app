@@ -2,6 +2,7 @@ import 'server-only'
 import { createClient } from '@/lib/utils/supabase/server'
 import { cache } from 'react'
 import { type Database } from '@/database.types'
+import { OrganizationSettingsRepository } from './repositories/organization-settings'
 
 export const getCurrentUser = cache(async () => {
   const supabase = await createClient()
@@ -81,6 +82,6 @@ export const getOrganizationMembership = cache(async () => {
 
 // Re-export all DAL functions for convenient imports
 export * from './repositories/organization'
-export * from './repositories/settings'
 export * from './repositories/profile'
 export * from './repositories/audit-log'
+export { OrganizationSettingsRepository }

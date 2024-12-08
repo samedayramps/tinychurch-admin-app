@@ -70,10 +70,17 @@ async function GroupDetailsPage({ params }: PageProps) {
   const isLeader = await isGroupLeader(group.id, user.id);
   const groupRepo = new GroupRepository(supabase);
 
-  // Get pending join requests if user is leader
-  const pendingRequests = isLeader 
-    ? await groupRepo.getPendingRequests(group.id)
-    : [];
+  // Get both pending requests and invitations if user is leader
+  const [pendingRequests, pendingInvitations] = isLeader 
+    ? await Promise.all([
+        groupRepo.getPendingRequests(groupId),
+        groupRepo.getPendingInvitations(groupId)
+      ])
+    : [[], []];
+
+  // Add debug logging
+  console.log('Is leader:', isLeader)
+  console.log('Pending invitations in page:', pendingInvitations)
 
   return (
     <div className="container mx-auto py-6 space-y-6">
@@ -89,7 +96,7 @@ async function GroupDetailsPage({ params }: PageProps) {
           {isLeader && (
             <>
               <TabsTrigger value="requests">
-                Join Requests
+                Requests
                 {pendingRequests.length > 0 && (
                   <span className="ml-2 rounded-full bg-primary/10 px-2 py-0.5 text-xs">
                     {pendingRequests.length}
@@ -122,7 +129,8 @@ async function GroupDetailsPage({ params }: PageProps) {
             <TabsContent value="requests">
               <GroupRequestsTab 
                 group={group}
-                requests={pendingRequests}
+                requests={pendingRequests || []}
+                invitations={pendingInvitations || []}
               />
             </TabsContent>
 

@@ -30,7 +30,7 @@ import { useToast } from '@/components/hooks/use-toast'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useForm } from 'react-hook-form'
 import * as z from 'zod'
-import { inviteToGroup } from '@/lib/actions/groups'
+import { inviteToGroup, addGroupMember } from '@/lib/actions/groups'
 import { UserPlus } from 'lucide-react'
 import { Combobox } from '@/components/ui/combobox'
 import { createClient } from '@/lib/utils/supabase/client'
@@ -77,82 +77,85 @@ export function GroupInviteDialog({
 }: GroupInviteDialogProps) {
   const [invitableMembers, setInvitableMembers] = useState<InvitableProfile[]>([])
   const [loading, setLoading] = useState(true)
+  const [open, setOpen] = useState(false)
   const { toast } = useToast()
   const supabase = createClient()
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
-  useEffect(() => {
-    async function loadInvitableMembers() {
-      try {
-        // Get organization members with their profiles
-        const { data: orgMembers, error: orgError } = await supabase
-          .from('organization_members')
-          .select(`
-            user_id,
-            profile:profiles!inner (
-              id,
-              email,
-              full_name,
-              avatar_url
-            )
-          `)
-          .eq('organization_id', organizationId)
-          .eq('status', 'active')
-          .is('deleted_at', null)
-
-        if (orgError) throw orgError
-
-        // Get existing group members
-        const { data: groupMembers, error: groupError } = await supabase
-          .from('group_members')
-          .select('user_id')
-          .eq('group_id', groupId)
-          .is('deleted_at', null)
-
-        if (groupError) throw groupError
-
-        // Filter and transform the data
-        const groupMemberIds = groupMembers?.map(m => m.user_id) || []
-        
-        // Safely cast the raw response
-        const rawMembers = ((orgMembers || []) as unknown) as RawOrgMemberResponse[]
-        
-        // Transform the raw data into our expected format
-        const typedOrgMembers: OrganizationMemberResponse[] = rawMembers.map(m => ({
-          user_id: m.user_id,
-          profile: {
-            id: m.profile.id,
-            email: m.profile.email,
-            full_name: m.profile.full_name,
-            avatar_url: m.profile.avatar_url
-          }
-        }))
-
-        const invitable = typedOrgMembers
-          .filter(m => !groupMemberIds.includes(m.user_id))
-          .map(m => m.profile)
-          .filter((profile): profile is InvitableProfile => 
-            profile !== null && 
-            typeof profile === 'object' &&
-            'id' in profile
+  const loadInvitableMembers = async () => {
+    try {
+      // Get organization members with their profiles
+      const { data: orgMembers, error: orgError } = await supabase
+        .from('organization_members')
+        .select(`
+          user_id,
+          profile:profiles!inner (
+            id,
+            email,
+            full_name,
+            avatar_url
           )
+        `)
+        .eq('organization_id', organizationId)
+        .eq('status', 'active')
+        .is('deleted_at', null)
 
-        setInvitableMembers(invitable)
-      } catch (error) {
-        console.error('Failed to load invitable members:', error)
-        toast({
-          title: 'Error',
-          description: 'Failed to load organization members',
-          variant: 'destructive',
-        })
-      } finally {
-        setLoading(false)
-      }
+      if (orgError) throw orgError
+
+      // Get existing group members
+      const { data: groupMembers, error: groupError } = await supabase
+        .from('group_members')
+        .select('user_id')
+        .eq('group_id', groupId)
+        .is('deleted_at', null)
+
+      if (groupError) throw groupError
+
+      // Filter and transform the data
+      const groupMemberIds = groupMembers?.map(m => m.user_id) || []
+      
+      // Safely cast the raw response
+      const rawMembers = ((orgMembers || []) as unknown) as RawOrgMemberResponse[]
+      
+      // Transform the raw data into our expected format
+      const typedOrgMembers: OrganizationMemberResponse[] = rawMembers.map(m => ({
+        user_id: m.user_id,
+        profile: {
+          id: m.profile.id,
+          email: m.profile.email,
+          full_name: m.profile.full_name,
+          avatar_url: m.profile.avatar_url
+        }
+      }))
+
+      const invitable = typedOrgMembers
+        .filter(m => !groupMemberIds.includes(m.user_id))
+        .map(m => m.profile)
+        .filter((profile): profile is InvitableProfile => 
+          profile !== null && 
+          typeof profile === 'object' &&
+          'id' in profile
+        )
+
+      setInvitableMembers(invitable)
+      setLoading(false)
+    } catch (error) {
+      console.error('Error loading invitable members:', error)
+      toast({
+        title: 'Error',
+        description: 'Failed to load invitable members',
+        variant: 'destructive',
+      })
+      setLoading(false)
     }
+  }
 
-    loadInvitableMembers()
-  }, [groupId, organizationId, supabase, toast])
-
-  const [open, setOpen] = useState(false)
+  // Load members when dialog opens
+  useEffect(() => {
+    if (open) {
+      loadInvitableMembers()
+    }
+  }, [open, organizationId, groupId])
 
   const form = useForm<z.infer<typeof inviteFormSchema>>({
     resolver: zodResolver(inviteFormSchema),
@@ -162,21 +165,69 @@ export function GroupInviteDialog({
     },
   })
 
-  async function onSubmit(data: z.infer<typeof inviteFormSchema>) {
+  const onSubmit = async (data: z.infer<typeof inviteFormSchema>) => {
+    if (isSubmitting) return // Prevent double submission
+    
+    try {
+      setIsSubmitting(true)
+      const selectedMember = invitableMembers.find(m => m.id === data.memberId)
+      if (!selectedMember) return
+
+      const result = await inviteToGroup(groupId, selectedMember.id, data.role)
+      
+      if (result.error) {
+        if (result.existingInvite) {
+          toast({
+            title: "Invitation Already Exists",
+            description: "This user has already been invited to the group.",
+            variant: "destructive"
+          })
+        } else {
+          toast({
+            title: "Error",
+            description: result.error,
+            variant: "destructive"
+          })
+        }
+        return
+      }
+
+      toast({
+        title: "Success",
+        description: "Invitation sent successfully",
+      })
+      setOpen(false)
+      form.reset()
+      onInviteSent?.()
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to send invitation. Please try again.",
+        variant: "destructive"
+      })
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  async function onDirectAdd(data: z.infer<typeof inviteFormSchema>) {
     try {
       const selectedMember = invitableMembers.find(m => m.id === data.memberId)
       if (!selectedMember) return
 
-      const result = await inviteToGroup(groupId, selectedMember.email, data.role)
+      const result = await addGroupMember(groupId, selectedMember.id, data.role)
       
       if (result.error) {
         throw new Error(result.error)
       }
 
       toast({
-        title: 'Invitation Sent',
-        description: `Invitation sent to ${selectedMember.email}`,
+        title: 'Member Added',
+        description: `${selectedMember.full_name || selectedMember.email} has been added to the group`,
       })
+      
+      // Remove the added member from the invitable list
+      setInvitableMembers(prev => prev.filter(m => m.id !== selectedMember.id))
       
       setOpen(false)
       form.reset()
@@ -184,7 +235,7 @@ export function GroupInviteDialog({
     } catch (error) {
       toast({
         title: 'Error',
-        description: error instanceof Error ? error.message : 'Failed to send invitation',
+        description: error instanceof Error ? error.message : 'Failed to add member',
         variant: 'destructive',
       })
     }
@@ -256,8 +307,18 @@ export function GroupInviteDialog({
               )}
             />
 
-            <DialogFooter>
-              <Button type="submit">
+            <DialogFooter className="flex justify-between space-x-2">
+              <Button 
+                type="button" 
+                variant="secondary"
+                onClick={() => form.handleSubmit(onDirectAdd)()}
+              >
+                Add Directly
+              </Button>
+              <Button 
+                type="submit"
+                onClick={() => form.handleSubmit(onSubmit)()}
+              >
                 Send Invitation
               </Button>
             </DialogFooter>

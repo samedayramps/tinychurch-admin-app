@@ -24,6 +24,12 @@ const nextConfig = {
       },
       // Add any other static redirects
     ]
+  },
+  images: {
+    domains: [
+      'maps.googleapis.com',
+      'maps.gstatic.com'
+    ]
   }
 }
 

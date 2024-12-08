@@ -27,6 +27,8 @@
     "@radix-ui/react-tabs": "^1.1.1",
     "@radix-ui/react-toast": "^1.2.2",
     "@radix-ui/react-tooltip": "^1.1.4",
+    "@react-email/components": "^0.0.30",
+    "@supabase/auth-helpers-nextjs": "^0.10.0",
     "@supabase/ssr": "latest",
     "@supabase/supabase-js": "latest",
     "@types/file-saver": "^2.0.7",
@@ -48,11 +50,13 @@
     "react-dom": "18.3.1",
     "react-hook-form": "^7.53.2",
     "recharts": "^2.14.1",
+    "resend": "^4.0.1",
     "uuid": "^11.0.3",
     "vaul": "^1.1.1",
     "zod": "^3.23.8"
   },
   "devDependencies": {
+    "@types/google.maps": "^3.58.1",
     "@types/node": "22.9.0",
     "@types/react": "^18.3.12",
     "@types/react-dom": "18.3.1",

@@ -1,15 +1,10 @@
 import { Suspense } from 'react'
 import { notFound, redirect } from 'next/navigation'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { GroupRepository } from '@/lib/dal/repositories/group'
 import { OrganizationRepository } from '@/lib/dal/repositories/organization'
 import { createClient } from '@/lib/utils/supabase/server'
 import { getCurrentUser } from '@/lib/dal'
-import { GroupOverviewTab } from '@/components/groups/group-overview-tab'
-import { GroupMembersTab } from '@/components/groups/group-members-tab'
-import GroupRequestsTab from '@/components/groups/group-requests-tab'
-import GroupSettingsTab from '@/components/groups/group-settings-tab'
+import { GroupDetailsTabs } from '@/components/groups/group-details-tabs'
 import { Button } from "@/components/ui/button"
 import { ArrowLeft } from "lucide-react"
 import Link from "next/link"
@@ -30,21 +25,17 @@ async function GroupDetailsPage({ params }: PageProps) {
   const groupRepo = new GroupRepository(supabase)
   const orgRepo = new OrganizationRepository(supabase)
 
-  // Get organization and group details
-  const [organization, group] = await Promise.all([
+  // Get organization, group details, and all pending data
+  const [organization, group, pendingRequests, pendingInvitations] = await Promise.all([
     orgRepo.findById(organizationId),
-    groupRepo.getGroupWithMembers(groupId)
+    groupRepo.getGroupWithMembers(groupId),
+    groupRepo.getPendingRequests(groupId),
+    groupRepo.getPendingInvitations(groupId)
   ])
 
   if (!organization || !group) {
     notFound()
   }
-
-  // Assuming you have a way to get pending requests
-  const pendingRequests = await groupRepo.getPendingRequests(groupId)
-
-  // Add this to fetch invitable members
-  const invitableMembers = await groupRepo.getInvitableMembers(groupId, organizationId)
 
   return (
     <div className="space-y-6">
@@ -59,44 +50,13 @@ async function GroupDetailsPage({ params }: PageProps) {
         </div>
       </div>
 
-      <Tabs defaultValue="overview" className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="members">Members</TabsTrigger>
-          <TabsTrigger value="requests">Join Requests</TabsTrigger>
-          <TabsTrigger value="settings">Settings</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="overview">
-          <GroupOverviewTab 
-            group={group}
-            organizationId={organizationId}
-            isLeader={true}
-          />
-        </TabsContent>
-
-        <TabsContent value="members">
-          <GroupMembersTab 
-            group={group}
-            isLeader={true} // Assuming the user is a leader
-            currentUserId={user.id}
-          />
-        </TabsContent>
-
-        <TabsContent value="requests">
-          <GroupRequestsTab 
-            group={group}
-            requests={pendingRequests}
-          />
-        </TabsContent>
-
-        <TabsContent value="settings">
-          <GroupSettingsTab 
-            group={group}
-            organizationId={organizationId}
-          />
-        </TabsContent>
-      </Tabs>
+      <GroupDetailsTabs
+        group={group}
+        organizationId={organizationId}
+        userId={user.id}
+        pendingRequests={pendingRequests}
+        pendingInvitations={pendingInvitations}
+      />
     </div>
   )
 }

@@ -3,7 +3,7 @@ export * from './organization'
 export * from './organization-member'
 export * from './user'
 export * from './profile'
-export * from './settings'
+export * from './organization-settings'
 
 // Re-export repository types
 export type { 

@@ -48,3 +48,13 @@ export interface MetricTags {
 
 // Re-export all types
 export * from '../repositories/types' 
+
+interface GroupWithOrganization {
+  id: string
+  name: string
+  organization_id: string
+  organization: {
+    id: string
+    name: string
+  }
+}

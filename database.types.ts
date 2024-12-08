@@ -9,6 +9,77 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      group_invitations: {
+        Row: {
+          created_at: string
+          expires_at: string
+          group_id: string
+          id: string
+          invited_by: string
+          invited_user: string
+          organization_id: string
+          role: Database["public"]["Enums"]["group_member_role"]
+          status: Database["public"]["Enums"]["invitation_status"]
+          token: string
+          used_at: string | null
+        }
+        Insert: {
+          created_at?: string
+          expires_at: string
+          group_id: string
+          id?: string
+          invited_by: string
+          invited_user: string
+          organization_id: string
+          role?: Database["public"]["Enums"]["group_member_role"]
+          status?: Database["public"]["Enums"]["invitation_status"]
+          token: string
+          used_at?: string | null
+        }
+        Update: {
+          created_at?: string
+          expires_at?: string
+          group_id?: string
+          id?: string
+          invited_by?: string
+          invited_user?: string
+          organization_id?: string
+          role?: Database["public"]["Enums"]["group_member_role"]
+          status?: Database["public"]["Enums"]["invitation_status"]
+          token?: string
+          used_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "group_invitations_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "groups"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "group_invitations_invited_by_fkey"
+            columns: ["invited_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "group_invitations_invited_user_fkey"
+            columns: ["invited_user"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "group_invitations_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       group_join_requests: {
         Row: {
           group_id: string
@@ -329,7 +400,6 @@ export type Database = {
           id: string
           name: string
           slug: string
-          settings: Json | null
           status: string | null
           timezone: string | null
           updated_at: string | null
@@ -345,7 +415,6 @@ export type Database = {
           id?: string
           name: string
           slug: string
-          settings?: Json | null
           status?: string | null
           timezone?: string | null
           updated_at?: string | null
@@ -361,7 +430,6 @@ export type Database = {
           id?: string
           name?: string
           slug?: string
-          settings?: Json | null
           status?: string | null
           timezone?: string | null
           updated_at?: string | null
@@ -494,6 +562,13 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      accept_group_invitation: {
+        Args: {
+          invitation_id: string
+          user_id: string
+        }
+        Returns: undefined
+      }
       add_group_member: {
         Args: {
           p_group_id: string
@@ -739,6 +814,13 @@ export type Database = {
         }
         Returns: number
       }
+      is_invitation_active: {
+        Args: {
+          used_at: string
+          expires_at: string
+        }
+        Returns: boolean
+      }
       manage_impersonation: {
         Args: {
           target_user_id: string
@@ -782,6 +864,14 @@ export type Database = {
         }
         Returns: string[]
       }
+      update_resource_usage: {
+        Args: {
+          org_id: string
+          resource: string
+          usage_delta: number
+        }
+        Returns: undefined
+      }
     }
     Enums: {
       activity_event_type:
@@ -818,6 +908,7 @@ export type Database = {
         | "service_team"
         | "other"
       group_visibility: "public" | "private" | "hidden"
+      invitation_status: "pending" | "accepted" | "rejected" | "cancelled"
       user_role: "admin" | "staff" | "ministry_leader" | "member" | "visitor"
       visibility_level: "public" | "members_only" | "staff_only" | "private"
     }

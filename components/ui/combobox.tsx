@@ -25,6 +25,8 @@ interface ComboboxProps {
   placeholder?: string
   emptyText?: string
   className?: string
+  triggerClassName?: string
+  contentClassName?: string
 }
 
 export function Combobox({
@@ -34,6 +36,8 @@ export function Combobox({
   placeholder = "Select...",
   emptyText = "No items found.",
   className,
+  triggerClassName,
+  contentClassName,
 }: ComboboxProps) {
   const [open, setOpen] = React.useState(false)
 
@@ -44,7 +48,7 @@ export function Combobox({
           variant="outline"
           role="combobox"
           aria-expanded={open}
-          className={cn("justify-between", className)}
+          className={cn("justify-between", className, triggerClassName)}
         >
           {value
             ? items.find((item) => item.id === value)?.name
@@ -52,7 +56,7 @@ export function Combobox({
           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent className={cn("p-0", className)}>
+      <PopoverContent className={cn("p-0", className, contentClassName)}>
         <Command>
           <CommandInput placeholder={`Search ${placeholder.toLowerCase()}...`} />
           <CommandList>

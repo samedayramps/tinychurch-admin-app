@@ -16,7 +16,7 @@ import { Input } from '@/components/ui/input'
 import { Switch } from '@/components/ui/switch'
 import { useToast } from '@/components/hooks/use-toast'
 import { useRouter } from 'next/navigation'
-import { inviteUserAction } from '@/lib/actions/invite'
+import { inviteUserAction } from '@/lib/actions/users'
 import {
   Select,
   SelectContent,

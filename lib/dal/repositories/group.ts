@@ -44,7 +44,8 @@ export type GroupType = Database['public']['Enums']['group_type']
 export type GroupVisibility = Database['public']['Enums']['group_visibility']
 export type GroupMemberRole = Database['public']['Enums']['group_member_role']
 
-export interface GroupWithMembers extends Omit<Group, 'members'> {
+export interface GroupWithMembers extends Omit<BaseGroup, 'members'> {
+  organization_id: string
   members: GroupMember[]
 }
 
@@ -117,6 +118,29 @@ export interface GroupWithDetails extends Omit<BaseGroup, 'settings'> {
 type Profile = Pick<Database['public']['Tables']['profiles']['Row'], 
   'id' | 'email' | 'full_name' | 'avatar_url'
 >
+
+// Define base types from database
+type BaseJoinRequest = Database['public']['Tables']['group_join_requests']['Row']
+type BaseGroupInvitation = Database['public']['Tables']['group_invitations']['Row']
+
+// Define the extended types with related data
+export type JoinRequest = BaseJoinRequest & {
+  user: {
+    id: string
+    email: string
+    full_name: string | null
+    avatar_url: string | null
+  }
+}
+
+export type GroupInvitation = BaseGroupInvitation & {
+  invited_user_profile: {
+    id: string
+    email: string
+    full_name: string | null
+    avatar_url: string | null
+  } | null
+}
 
 export class GroupRepository extends BaseRepository<'groups'> {
   protected tableName = 'groups' as const
@@ -260,66 +284,50 @@ export class GroupRepository extends BaseRepository<'groups'> {
   // Get a single group with its members
   async getGroupWithMembers(groupId: string): Promise<GroupWithMembers | null> {
     try {
-      const { data, error } = await this.supabase
+      const { data: group, error: groupError } = await this.supabase
         .from(this.tableName)
-        .select(`
-          *,
-          members:group_members(
-            id,
-            user_id,
-            group_id,
-            role,
-            status,
-            joined_at,
-            deleted_at,
-            notifications_enabled,
-            profile:profiles(
-              id,
-              email,
-              full_name,
-              avatar_url
-            )
-          )
-        `)
+        .select('*')
         .eq('id', groupId)
         .is('deleted_at', null)
         .single()
 
-      if (error) {
-        console.error('Error in getGroupWithMembers:', error)
-        throw this.handleError(error, 'getGroupWithMembers')
-      }
+      if (groupError) throw groupError
+      if (!group) return null
 
-      if (!data) {
-        return null
-      }
+      const { data: members, error: membersError } = await this.supabase
+        .from('group_members')
+        .select(`
+          *,
+          profile:profiles (
+            id,
+            email,
+            full_name,
+            avatar_url
+          )
+        `)
+        .eq('group_id', groupId)
+        .is('deleted_at', null)
 
-      // Transform and validate the members data
-      const members = (data.members || [])
-        .filter((m: any) => m !== null && typeof m === 'object')
-        .map((m: any): GroupMember => ({
-          id: m.id,
-          user_id: m.user_id,
-          group_id: m.group_id,
-          role: m.role,
-          status: m.status,
-          joined_at: m.joined_at,
-          deleted_at: m.deleted_at,
-          notifications_enabled: m.notifications_enabled,
-          profile: {
-            id: m.profile.id,
-            email: m.profile.email,
-            full_name: m.profile.full_name,
-            avatar_url: m.profile.avatar_url
-          }
-        }))
+      if (membersError) throw membersError
+
+      const typedMembers: GroupMember[] = (members || []).map(member => ({
+        id: member.id,
+        user_id: member.user_id,
+        group_id: member.group_id,
+        role: member.role,
+        status: member.status,
+        joined_at: member.joined_at,
+        deleted_at: member.deleted_at,
+        notifications_enabled: member.notifications_enabled,
+        profile: member.profile as GroupMember['profile']
+      }))
 
       return {
-        ...data,
-        members
+        ...group,
+        organization_id: group.organization_id,
+        members: typedMembers
       }
     } catch (error) {
-      console.error('Error fetching group with members:', error)
       throw this.handleError(error, 'getGroupWithMembers')
     }
   }
@@ -328,19 +336,62 @@ export class GroupRepository extends BaseRepository<'groups'> {
   async addMember(
     groupId: string, 
     userId: string, 
-    role: GroupMemberRole = 'member'
-  ): Promise<string> {
+    data: {
+      role: Database['public']['Enums']['group_member_role']
+      joined_at: string
+      status: string
+    }
+  ) {
     try {
-      const { data, error } = await this.supabase
-        .rpc('add_group_member', {
-          p_group_id: groupId,
-          p_user_id: userId,
-          p_role: role
-        })
+      // First check if member exists (including soft-deleted)
+      const { data: existingMember } = await this.supabase
+        .from('group_members')
+        .select('*')
+        .eq('group_id', groupId)
+        .eq('user_id', userId)
+        .single()
 
-      if (error) throw error
-      return data
+      if (existingMember) {
+        if (existingMember.deleted_at) {
+          // If member was soft-deleted, reactivate them
+          const { error: updateError } = await this.supabase
+            .from('group_members')
+            .update({
+              role: data.role,
+              status: data.status,
+              joined_at: data.joined_at,
+              deleted_at: null,
+              notifications_enabled: true
+            })
+            .eq('id', existingMember.id)
+
+          if (updateError) throw updateError
+        } else {
+          // Member already exists and is active
+          throw new DalError(
+            'User is already a member of this group',
+            'VALIDATION_ERROR'
+          )
+        }
+      } else {
+        // Add new member
+        const { error } = await this.supabase
+          .from('group_members')
+          .insert({
+            group_id: groupId,
+            user_id: userId,
+            role: data.role,
+            joined_at: data.joined_at,
+            status: data.status,
+            notifications_enabled: true
+          })
+
+        if (error) throw error
+      }
     } catch (error) {
+      if (error instanceof DalError) {
+        throw error
+      }
       throw this.handleError(error, 'addMember')
     }
   }
@@ -366,16 +417,17 @@ export class GroupRepository extends BaseRepository<'groups'> {
   }
 
   // Remove a member from a group
-  async removeMember(groupId: string, userId: string): Promise<void> {
+  async removeMember(groupId: string, userId: string) {
     try {
       const { error } = await this.supabase
         .from('group_members')
-        .update({ 
+        .update({
           deleted_at: new Date().toISOString(),
           status: 'inactive'
         })
         .eq('group_id', groupId)
         .eq('user_id', userId)
+        .is('deleted_at', null)
 
       if (error) throw error
     } catch (error) {
@@ -531,9 +583,143 @@ export class GroupRepository extends BaseRepository<'groups'> {
 
   // Update error handling to match BaseRepository
   protected handleError(error: unknown, operation: string): never {
-    if (typeof error === 'string') {
-      throw DalError.operationFailed(operation, new Error(error))
+    console.error(`Error in ${operation}:`, error)
+    
+    if (error instanceof Error) {
+      throw new DalError(
+        `Operation ${operation} failed: ${error.message}`,
+        'QUERY_ERROR',
+        { error, operation }
+      )
     }
-    throw DalError.operationFailed(operation, error)
+    
+    throw new DalError(
+      `Operation ${operation} failed`,
+      'QUERY_ERROR',
+      { error, operation }
+    )
+  }
+
+  // Update the updateMemberRole method in GroupRepository class
+  async updateMemberRole(
+    groupId: string,
+    userId: string,
+    newRole: Database['public']['Enums']['group_member_role']
+  ) {
+    try {
+      const { data, error } = await this.supabase
+        .from('group_members')
+        .update({
+          role: newRole
+        })
+        .eq('group_id', groupId)
+        .eq('user_id', userId)
+        .is('deleted_at', null)
+        .select()
+
+      if (error) {
+        console.error('Database error in updateMemberRole:', error)
+        throw error
+      }
+
+      return data
+    } catch (error) {
+      console.error('Error in updateMemberRole:', error)
+      throw this.handleError(error, 'updateMemberRole')
+    }
+  }
+
+  async getPendingInvitations(groupId: string): Promise<GroupInvitation[]> {
+    try {
+      console.log('Fetching pending invitations for group:', groupId)
+      
+      const { data, error } = await this.supabase
+        .from('group_invitations')
+        .select(`
+          *,
+          invited_user_profile:profiles!invited_user(
+            id,
+            email,
+            full_name,
+            avatar_url
+          )
+        `)
+        .eq('group_id', groupId)
+        .eq('status', 'pending')
+        .is('used_at', null)
+        .gt('expires_at', new Date().toISOString())
+        .order('created_at', { ascending: false })
+
+      if (error) {
+        console.error('Error fetching invitations:', error)
+        throw error
+      }
+
+      console.log('Raw invitations data:', data)
+
+      const invitations = (data || []).map(invitation => ({
+        ...invitation,
+        invited_user_profile: Array.isArray(invitation.invited_user_profile) 
+          ? invitation.invited_user_profile[0] 
+          : invitation.invited_user_profile
+      }))
+
+      console.log('Processed invitations:', invitations)
+
+      return invitations
+    } catch (error) {
+      console.error('Error in getPendingInvitations:', error)
+      throw this.handleError(error, 'getPendingInvitations')
+    }
+  }
+
+  async createInvitation(data: {
+    groupId: string
+    organizationId: string
+    invitedBy: string
+    invitedUser: string
+    role: Database['public']['Enums']['group_member_role']
+  }) {
+    try {
+      // First check for existing pending invitations
+      const { data: existingInvite } = await this.supabase
+        .from('group_invitations')
+        .select('id, status')
+        .eq('group_id', data.groupId)
+        .eq('invited_user', data.invitedUser)
+        .eq('status', 'pending')
+        .single()
+
+      if (existingInvite) {
+        throw new Error('User already has a pending invitation to this group')
+      }
+
+      // Create new invitation
+      const { data: invitation, error } = await this.supabase
+        .from('group_invitations')
+        .insert({
+          group_id: data.groupId,
+          organization_id: data.organizationId,
+          invited_by: data.invitedBy,
+          invited_user: data.invitedUser,
+          role: data.role,
+          status: 'pending',
+          token: crypto.randomUUID(),
+          expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
+        })
+        .select()
+        .single()
+
+      if (error) {
+        if (error.code === '23505') { // Unique constraint violation
+          throw new Error('User already has a pending invitation to this group')
+        }
+        throw error
+      }
+
+      return invitation
+    } catch (error) {
+      throw this.handleError(error, 'createInvitation')
+    }
   }
 }

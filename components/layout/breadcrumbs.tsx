@@ -8,7 +8,7 @@ import { useBreadcrumbs } from '@/lib/contexts/breadcrumbs-context'
 export function Breadcrumbs() {
   const pathname = usePathname()
   const { organizationName, groupName } = useBreadcrumbs()
-  const segments = pathname.split('/').filter(Boolean)
+  const segments = pathname.split('/').filter(segment => segment && segment !== 'superadmin')
 
   console.log('Breadcrumbs Debug:', {
     pathname,
@@ -22,7 +22,12 @@ export function Breadcrumbs() {
   }
 
   const breadcrumbs = segments.map((segment, index) => {
-    const href = `/${segments.slice(0, index + 1).join('/')}`
+    const isInSuperadmin = pathname.includes('/superadmin/')
+    const previousSegments = segments.slice(0, index + 1)
+    const href = isInSuperadmin 
+      ? `/superadmin/${previousSegments.join('/')}` 
+      : `/${previousSegments.join('/')}`
+
     let label = segment
 
     // Replace organization ID with name if available

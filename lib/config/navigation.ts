@@ -4,7 +4,8 @@ import {
   Building2, 
   Settings,
   Shield,
-  Activity
+  Activity,
+  Plus
 } from "lucide-react"
 
 export const adminNavItems = [
@@ -78,6 +79,11 @@ export const superAdminNavItems = [
         title: "Users",
         href: "/superadmin/users",
         icon: Users
+      },
+      {
+        title: "Tenant Onboarding",
+        href: "/superadmin/onboarding",
+        icon: Plus
       }
     ]
   },

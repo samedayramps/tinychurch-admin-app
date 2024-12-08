@@ -2,7 +2,7 @@
 'use client'
 
 import { useState } from 'react'
-import { GroupMember } from '@/lib/dal/repositories/group'
+import type { GroupMember } from '@/lib/dal/repositories/group'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -47,6 +47,8 @@ import {
 import { formatDistance } from 'date-fns'
 import { GroupInviteDialog } from './group-invite-dialog'
 import type { Database } from '@/database.types'
+import { removeGroupMember, updateMemberRole } from '@/lib/actions/groups'
+import { createClient } from '@/lib/utils/supabase/client'
 
 interface GroupMembersTabProps {
   group: {
@@ -58,23 +60,27 @@ interface GroupMembersTabProps {
   }
   isLeader: boolean
   currentUserId: string
+  onMembersUpdate?: (updatedMembers: GroupMember[]) => void
 }
 
 export function GroupMembersTab({ 
   group,
   isLeader,
-  currentUserId
+  currentUserId,
+  onMembersUpdate
 }: GroupMembersTabProps) {
+  const [members, setMembers] = useState<GroupMember[]>(group.members)
   const [loading, setLoading] = useState<string | null>(null)
   const [confirmAction, setConfirmAction] = useState<{
     type: 'remove' | 'promote' | 'demote'
     memberId: string
     memberName: string
+    userId: string
   } | null>(null)
   const { toast } = useToast()
 
   // Sort members by role (leaders first) and then by name
-  const sortedMembers = [...group.members].sort((a: GroupMember, b: GroupMember) => {
+  const sortedMembers = [...members].sort((a: GroupMember, b: GroupMember) => {
     if (a.role === 'leader' && b.role !== 'leader') return -1
     if (a.role !== 'leader' && b.role === 'leader') return 1
     return (a.profile.full_name || a.profile.email).localeCompare(
@@ -82,37 +88,58 @@ export function GroupMembersTab({
     )
   })
 
-  const handleAction = async (type: 'remove' | 'promote' | 'demote', member: GroupMember) => {
-    setLoading(member.id)
+  const handleAction = async () => {
+    if (!confirmAction) return
+
+    setLoading(confirmAction.memberId)
     try {
-      // TODO: Implement the API calls for these actions
-      switch (type) {
+      let result;
+      switch (confirmAction.type) {
         case 'remove':
-          // await groupRepo.removeMember(group.id, member.user_id)
-          toast({
-            title: 'Member Removed',
-            description: `${member.profile.full_name || member.profile.email} has been removed from the group.`
-          })
-          break
+          result = await removeGroupMember(group.id, confirmAction.userId)
+          if (result.success) {
+            const updatedMembers = members.filter(m => m.user_id !== confirmAction.userId)
+            setMembers(updatedMembers)
+            onMembersUpdate?.(updatedMembers)
+          }
+          break;
         case 'promote':
-          // await groupRepo.updateMemberRole(group.id, member.user_id, 'leader')
-          toast({
-            title: 'Member Promoted',
-            description: `${member.profile.full_name || member.profile.email} is now a group leader.`
-          })
-          break
+          result = await updateMemberRole(group.id, confirmAction.userId, 'leader')
+          if (result.success) {
+            const updatedMembers = members.map(m => 
+              m.user_id === confirmAction.userId ? { ...m, role: 'leader' as const } : m
+            )
+            setMembers(updatedMembers)
+            onMembersUpdate?.(updatedMembers)
+          }
+          break;
         case 'demote':
-          // await groupRepo.updateMemberRole(group.id, member.user_id, 'member')
-          toast({
-            title: 'Leader Demoted',
-            description: `${member.profile.full_name || member.profile.email} is now a regular member.`
-          })
-          break
+          result = await updateMemberRole(group.id, confirmAction.userId, 'member')
+          if (result.success) {
+            const updatedMembers = members.map(m => 
+              m.user_id === confirmAction.userId ? { ...m, role: 'member' as const } : m
+            )
+            setMembers(updatedMembers)
+            onMembersUpdate?.(updatedMembers)
+          }
+          break;
       }
+
+      if (result?.error) {
+        throw new Error(result.error)
+      }
+
+      toast({
+        title: 'Success',
+        description: `Member ${confirmAction.type === 'remove' ? 'removed' : 
+          confirmAction.type === 'promote' ? 'promoted to leader' : 
+          'changed to regular member'}`
+      })
     } catch (error) {
+      console.error('Action failed:', error)
       toast({
         title: 'Action Failed',
-        description: `Failed to ${type} member. Please try again.`,
+        description: error instanceof Error ? error.message : 'Failed to perform action',
         variant: 'destructive'
       })
     } finally {
@@ -128,7 +155,7 @@ export function GroupMembersTab({
           <div>
             <CardTitle>Group Members</CardTitle>
             <CardDescription>
-              {group.members.length} members in total
+              {members.length} members in total
               {group.max_members != null && group.max_members > 0 && ` (${group.max_members} maximum)`}
             </CardDescription>
           </div>
@@ -136,8 +163,27 @@ export function GroupMembersTab({
             <GroupInviteDialog 
               groupId={group.id}
               organizationId={group.organization_id}
-              onInviteSent={() => {
-                // Optional: Add any refresh logic here
+              onInviteSent={async () => {
+                // Fetch updated member list
+                const supabase = createClient()
+                const { data: updatedMembers } = await supabase
+                  .from('group_members')
+                  .select(`
+                    *,
+                    profile:profiles (
+                      id,
+                      email,
+                      full_name,
+                      avatar_url
+                    )
+                  `)
+                  .eq('group_id', group.id)
+                  .is('deleted_at', null)
+
+                if (updatedMembers) {
+                  setMembers(updatedMembers)
+                  onMembersUpdate?.(updatedMembers)
+                }
               }}
             />
           )}
@@ -219,6 +265,7 @@ export function GroupMembersTab({
                               onClick={() => setConfirmAction({
                                 type: 'promote',
                                 memberId: member.id,
+                                userId: member.user_id,
                                 memberName: member.profile.full_name || member.profile.email
                               })}
                             >
@@ -230,6 +277,7 @@ export function GroupMembersTab({
                               onClick={() => setConfirmAction({
                                 type: 'demote',
                                 memberId: member.id,
+                                userId: member.user_id,
                                 memberName: member.profile.full_name || member.profile.email
                               })}
                             >
@@ -246,6 +294,7 @@ export function GroupMembersTab({
                             onClick={() => setConfirmAction({
                               type: 'remove',
                               memberId: member.id,
+                              userId: member.user_id,
                               memberName: member.profile.full_name || member.profile.email
                             })}
                           >
@@ -290,23 +339,20 @@ export function GroupMembersTab({
             <Button
               variant="outline"
               onClick={() => setConfirmAction(null)}
+              disabled={loading !== null}
             >
               Cancel
             </Button>
-            <Button
+            <Button 
               variant={confirmAction?.type === 'remove' ? 'destructive' : 'default'}
-              onClick={() => {
-                if (confirmAction) {
-                  const member = group.members.find((m: GroupMember) => m.id === confirmAction.memberId)
-                  if (member) {
-                    handleAction(confirmAction.type, member)
-                  }
-                }
-              }}
+              onClick={handleAction}
+              disabled={loading !== null}
             >
-              {confirmAction?.type === 'remove' && 'Remove'}
-              {confirmAction?.type === 'promote' && 'Promote'}
-              {confirmAction?.type === 'demote' && 'Remove Role'}
+              {loading !== null ? (
+                <span>Processing...</span>
+              ) : (
+                <span>Confirm</span>
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>
