@@ -1,6 +1,7 @@
 import { BaseRepository } from '../base/repository'
 import type { Database } from '@/database.types'
 import type { Json } from '@/database.types'
+import { log } from '@/lib/utils/logger'
 
 type OrganizationSetting = Database['public']['Tables']['organization_settings']['Row']
 
@@ -9,19 +10,26 @@ export class OrganizationSettingsRepository extends BaseRepository<'organization
   protected organizationField = 'organization_id' as const
 
   async getSettings(organizationId: string): Promise<Record<string, Json>> {
+    log.info('Fetching settings for organization', { organizationId })
+
     try {
       const { data, error } = await this.supabase
         .from(this.tableName)
         .select('key, value')
         .eq('organization_id', organizationId)
 
-      if (error) throw error
+      if (error) {
+        log.error('Error fetching settings', { error })
+        throw error
+      }
 
+      log.info('Settings fetched successfully', { data })
       return (data || []).reduce((acc, { key, value }) => ({
         ...acc,
         [key]: value
       }), {})
     } catch (error) {
+      log.error('Exception in getSettings', { error })
       throw this.handleError(error, 'getSettings')
     }
   }
