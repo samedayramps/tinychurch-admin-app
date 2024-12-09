@@ -19,6 +19,7 @@ import { Input } from "@/components/ui/input"
 import { Switch } from "@/components/ui/switch"
 import { useToast } from "@/components/hooks/use-toast"
 import { updateMessagingSettings } from "@/lib/actions/messaging"
+import { TimePicker } from '@/components/ui/time-picker'
 
 const formSchema = z.object({
   default_from_name: z.string().min(2, {
@@ -28,6 +29,7 @@ const formSchema = z.object({
     message: "Please enter a valid email address.",
   }),
   notifications_enabled: z.boolean(),
+  default_send_time: z.string().optional(),
 })
 
 interface MessagingSettingsTabProps {
@@ -36,6 +38,7 @@ interface MessagingSettingsTabProps {
     default_from_name: string
     default_reply_to: string
     notifications_enabled: boolean
+    default_send_time?: string
   }
 }
 
@@ -129,6 +132,26 @@ export function MessagingSettingsTab({ organizationId, settings }: MessagingSett
                       onCheckedChange={field.onChange}
                     />
                   </FormControl>
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="default_send_time"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Default Send Time</FormLabel>
+                  <FormControl>
+                    <TimePicker
+                      value={field.value}
+                      onChange={field.onChange}
+                    />
+                  </FormControl>
+                  <FormDescription>
+                    Default time for scheduled messages (optional)
+                  </FormDescription>
+                  <FormMessage />
                 </FormItem>
               )}
             />

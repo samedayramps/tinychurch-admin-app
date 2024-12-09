@@ -27,6 +27,22 @@ export const userValidation = {
   }).optional(),
 }
 
+export const messageValidation = {
+  subject: z.string().min(1, "Subject is required"),
+  body: z.string().min(1, "Message body is required"),
+  recipientType: z.enum(['individual', 'group', 'organization']),
+  recipientId: z.string().min(1, "Recipient is required"),
+  role: z.string().optional(),
+  organizationId: z.string().min(1, "Organization is required"),
+  scheduledAt: z.string().optional()
+    .refine((date) => {
+      if (!date) return true // Allow empty for immediate sending
+      const scheduledDate = new Date(date)
+      const now = new Date()
+      return scheduledDate > now
+    }, "Scheduled time must be in the future")
+}
+
 export const schemas = {
   userForm: z.object({
     first_name: userValidation.first_name,
@@ -59,5 +75,24 @@ export const schemas = {
     alternative_email: userValidation.alternative_email,
     phone: userValidation.phone,
     notification_preferences: userValidation.notification_preferences,
+  }),
+
+  messageForm: z.object({
+    subject: messageValidation.subject,
+    body: messageValidation.body,
+    recipientType: messageValidation.recipientType,
+    recipientId: messageValidation.recipientId,
+    role: messageValidation.role,
+    organizationId: messageValidation.organizationId,
+    scheduledAt: messageValidation.scheduledAt,
+  }),
+
+  messageSettings: z.object({
+    default_from_name: z.string().min(2, "From name must be at least 2 characters"),
+    default_reply_to: z.string().email("Please enter a valid email address"),
+    notifications_enabled: z.boolean(),
+    default_send_time: z.string()
+      .regex(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/, "Invalid time format")
+      .optional(),
   })
 } 

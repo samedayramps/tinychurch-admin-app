@@ -297,12 +297,16 @@ export type Database = {
           error_message: string | null
           group_id: string | null
           id: string
+          metadata: Json | null
           organization_id: string | null
           recipient_id: string | null
+          resend_id: string | null
+          scheduled_for: string | null
           sender_id: string
           sent_at: string | null
           status: Database["public"]["Enums"]["message_status"]
           subject: string
+          updated_at: string | null
         }
         Insert: {
           body: string
@@ -310,12 +314,16 @@ export type Database = {
           error_message?: string | null
           group_id?: string | null
           id?: string
+          metadata?: Json | null
           organization_id?: string | null
           recipient_id?: string | null
+          resend_id?: string | null
+          scheduled_for?: string | null
           sender_id: string
           sent_at?: string | null
           status?: Database["public"]["Enums"]["message_status"]
           subject: string
+          updated_at?: string | null
         }
         Update: {
           body?: string
@@ -323,12 +331,16 @@ export type Database = {
           error_message?: string | null
           group_id?: string | null
           id?: string
+          metadata?: Json | null
           organization_id?: string | null
           recipient_id?: string | null
+          resend_id?: string | null
+          scheduled_for?: string | null
           sender_id?: string
           sent_at?: string | null
           status?: Database["public"]["Enums"]["message_status"]
           subject?: string
+          updated_at?: string | null
         }
         Relationships: [
           {
@@ -366,6 +378,7 @@ export type Database = {
           created_at: string | null
           default_from_name: string | null
           default_reply_to: string | null
+          default_send_time: string | null
           id: string
           notifications_enabled: boolean | null
           organization_id: string | null
@@ -375,6 +388,7 @@ export type Database = {
           created_at?: string | null
           default_from_name?: string | null
           default_reply_to?: string | null
+          default_send_time?: string | null
           id?: string
           notifications_enabled?: boolean | null
           organization_id?: string | null
@@ -384,6 +398,7 @@ export type Database = {
           created_at?: string | null
           default_from_name?: string | null
           default_reply_to?: string | null
+          default_send_time?: string | null
           id?: string
           notifications_enabled?: boolean | null
           organization_id?: string | null
@@ -1079,7 +1094,7 @@ export type Database = {
       group_visibility: "public" | "private" | "hidden"
       invitation_status: "pending" | "accepted" | "rejected" | "cancelled"
       message_priority: "low" | "normal" | "high" | "urgent"
-      message_status: "pending" | "sent" | "failed"
+      message_status: "pending" | "sent" | "failed" | "scheduled" | "cancelled"
       message_type: "email" | "notification" | "announcement" | "alert"
       user_role: "admin" | "staff" | "ministry_leader" | "member" | "visitor"
       visibility_level: "public" | "members_only" | "staff_only" | "private"

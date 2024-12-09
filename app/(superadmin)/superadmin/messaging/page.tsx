@@ -8,33 +8,23 @@ import { MessagingHistoryTab } from './components/messaging-history-tab'
 async function MessagingPage() {
   const supabase = await createClient()
   
-  const { data: organizations } = await supabase
-    .from('organizations')
-    .select('*')
-    .limit(1)
-    .single()
-
-  if (!organizations) {
-    throw new Error('No organization found')
-  }
-
   const [
+    { data: organizations },
     { data: groups },
     { data: templates },
     { data: profilesWithOrgs },
-    { data: settings }
+    { data: messagingSettings }
   ] = await Promise.all([
+    supabase.from('organizations').select('*').limit(1).single(),
     supabase.from('groups').select('*'),
     supabase.from('message_templates').select('*'),
-    supabase
-      .from('profiles')
-      .select(`
-        *,
-        organization_members!inner(
-          organization_id
-        )
-      `),
-    supabase.from('messaging_settings').select('*')
+    supabase.from('profiles').select(`
+      *,
+      organization_members!inner(
+        organization_id
+      )
+    `),
+    supabase.from('messaging_settings').select('*').single()
   ])
 
   console.log('Loaded organizations:', organizations)
@@ -65,6 +55,7 @@ async function MessagingPage() {
             groups={groups || []}
             templates={templates || []}
             recipients={recipients}
+            messagingSettings={messagingSettings || undefined}
           />
         </TabsContent>
 
@@ -75,7 +66,7 @@ async function MessagingPage() {
         <TabsContent value="settings">
           <MessagingSettingsTab 
             organizationId={organizations.id}
-            settings={settings?.[0] || {
+            settings={messagingSettings || {
               default_from_name: '',
               default_reply_to: '',
               notifications_enabled: true

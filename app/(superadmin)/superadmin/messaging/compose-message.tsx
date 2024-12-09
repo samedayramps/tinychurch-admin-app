@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button'
 import { RecipientSelector } from './components/recipient-selector'
 import { MessageForm } from './components/message-form'
 import { OrganizationFilter } from './components/organization-filter'
+import { format } from 'date-fns'
 
 type Organization = Database['public']['Tables']['organizations']['Row']
 type Group = Database['public']['Tables']['groups']['Row']
@@ -22,13 +23,17 @@ interface ComposeMessageProps {
   groups: Group[]
   templates: Template[]
   recipients: Profile[]
+  messagingSettings?: {
+    default_send_time?: string | null
+  }
 }
 
 export function ComposeMessage({ 
   organizations = [], 
   groups = [], 
   templates = [], 
-  recipients = []
+  recipients = [],
+  messagingSettings
 }: ComposeMessageProps) {
   const { toast } = useToast()
   const [selectedOrg, setSelectedOrg] = useState<string>('all')
@@ -39,6 +44,7 @@ export function ComposeMessage({
   const [role, setRole] = useState('')
   const [loading, setLoading] = useState(false)
   const [selectedTemplate, setSelectedTemplate] = useState('')
+  const [scheduledAt, setScheduledAt] = useState<Date>()
 
   // Filter data based on selected organization
   const filteredGroups = selectedOrg === 'all' 
@@ -77,6 +83,7 @@ export function ComposeMessage({
         recipientId,
         role: recipientType === 'organization' ? role : undefined,
         organizationId: orgId,
+        scheduledAt: scheduledAt?.toISOString()
       })
 
       if (result.error) {
@@ -85,7 +92,9 @@ export function ComposeMessage({
 
       toast({
         title: 'Success',
-        description: 'Message sent successfully',
+        description: scheduledAt 
+          ? `Message scheduled for ${format(scheduledAt, 'PPp')}`
+          : 'Message sent successfully',
       })
 
       // Reset form
@@ -146,8 +155,11 @@ export function ComposeMessage({
       <MessageForm
         subject={subject}
         body={body}
+        scheduledAt={scheduledAt}
+        defaultSendTime={messagingSettings?.default_send_time || undefined}
         onSubjectChange={setSubject}
         onBodyChange={setBody}
+        onScheduleChange={setScheduledAt}
       />
 
       <Button 

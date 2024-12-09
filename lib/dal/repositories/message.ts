@@ -16,19 +16,19 @@ export type MessageQueryResponse = MessageRow & {
     full_name: string | null
     avatar_url: string | null
   }
-  recipient?: {
+  recipient: {
     id: string
     email: string
     full_name: string | null
-  }
-  group?: {
+  } | null
+  group: {
     id: string
     name: string
-  }
-  organization?: {
+  } | null
+  organization: {
     id: string
     name: string
-  }
+  } | null
   error?: string
 }
 
@@ -46,9 +46,14 @@ export class MessageRepository extends BaseRepositoryBase<'messages'> {
   }
 
   async create(data: MessageInsert): Promise<MessageQueryResponse> {
+    const initialStatus = data.scheduled_for ? 'scheduled' : 'pending'
+
     const { data: message, error } = await this.supabase
       .from(this.tableName)
-      .insert(data)
+      .insert({
+        ...data,
+        status: initialStatus
+      })
       .select(`
         *,
         sender:profiles!messages_sender_id_fkey (
@@ -60,7 +65,11 @@ export class MessageRepository extends BaseRepositoryBase<'messages'> {
       `)
       .single()
 
-    if (error) throw error
+    if (error) {
+      console.error('Error creating message:', error)
+      throw error
+    }
+    
     if (!message) throw new Error('Failed to create message')
     return message as MessageQueryResponse
   }
@@ -128,5 +137,40 @@ export class MessageRepository extends BaseRepositoryBase<'messages'> {
 
     if (error) throw error;
     return updatedMessage;
+  }
+
+  async getById(id: string): Promise<MessageQueryResponse | null> {
+    const { data, error } = await this.supabase
+      .from(this.tableName)
+      .select(`
+        *,
+        sender:profiles!messages_sender_id_fkey (
+          id,
+          email,
+          full_name,
+          avatar_url
+        ),
+        recipient:profiles!messages_recipient_id_fkey (
+          id,
+          email,
+          full_name
+        ),
+        group:groups!messages_group_id_fkey (
+          id,
+          name
+        ),
+        organization:organizations!messages_organization_id_fkey (
+          id,
+          name
+        )
+      `)
+      .eq('id', id)
+      .single()
+
+    if (error) throw error
+    
+    if (!data || !data.sender) return null
+
+    return data as MessageQueryResponse
   }
 } 

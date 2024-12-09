@@ -6,24 +6,22 @@ import { revalidatePath } from 'next/cache'
 import { MessageRepository, type MessageQueryResponse } from '@/lib/dal/repositories/message'
 import type { Database } from '@/database.types'
 import { Resend } from 'resend'
+import { schemas } from '@/lib/validations/schemas'
+import { z } from 'zod'
 
 const resend = new Resend(process.env.RESEND_API_KEY)
 
 // Define MessageInput type locally since it's not exported
 type MessageInput = Database['public']['Tables']['messages']['Insert']
 
-export async function sendMessage(params: {
-  subject: string
-  body: string
-  recipientType: 'individual' | 'group' | 'organization'
-  recipientId: string
-  role?: string
-  organizationId: string
-}): Promise<{ message?: MessageQueryResponse; error?: string }> {
+export async function sendMessage(params: z.infer<typeof schemas.messageForm>): Promise<{ message?: MessageQueryResponse; error?: string }> {
   try {
+    // Validate the input
+    const validatedData = schemas.messageForm.parse(params)
+
     console.log('Creating message with data:', {
-      ...params,
-      body: params.body.substring(0, 100) + '...' // Truncate body for logging
+      ...validatedData,
+      body: validatedData.body.substring(0, 100) + '...' // Truncate body for logging
     })
 
     const currentUser = await getCurrentUser()
@@ -39,7 +37,7 @@ export async function sendMessage(params: {
     const { data: orgData, error: orgError } = await supabase
       .from('organizations')
       .select('email_from')
-      .eq('id', params.organizationId)
+      .eq('id', validatedData.organizationId)
       .single();
 
     if (orgError) return { error: orgError.message }
@@ -47,72 +45,97 @@ export async function sendMessage(params: {
 
     // Create the message record with correct recipient field
     const messageData: MessageInput = {
-      subject: params.subject,
-      body: params.body,
+      subject: validatedData.subject,
+      body: validatedData.body,
       sender_id: currentUser.id,
-      status: 'pending',
+      status: validatedData.scheduledAt ? 'scheduled' : 'pending',
+      scheduled_for: validatedData.scheduledAt,
       created_at: new Date().toISOString(),
-      organization_id: params.organizationId,
+      organization_id: validatedData.organizationId,
+      recipient_id: null,
+      group_id: null,
+      metadata: {},
     }
 
     // Set the correct recipient field based on type
-    if (params.recipientType === 'individual') {
-      messageData.recipient_id = params.recipientId
-    } else if (params.recipientType === 'group') {
-      messageData.group_id = params.recipientId
-    } else {
-      messageData.organization_id = params.recipientId
+    switch (validatedData.recipientType) {
+      case 'individual':
+        messageData.recipient_id = validatedData.recipientId
+        break
+      case 'group':
+        messageData.group_id = validatedData.recipientId
+        break
+      case 'organization':
+        messageData.metadata = {
+          target_organization_id: validatedData.recipientId
+        }
+        break
     }
-    console.log('Message data prepared:', messageData);
 
-    const message = await messageRepo.create(messageData)
-    console.log('Created message:', {
-      id: message.id,
-      organization_id: message.organization_id,
-      status: message.status
-    })
+    console.log('Message data prepared:', messageData)
 
-    const recipients = await messageRepo.getRecipients(
-      params.recipientType,
-      params.recipientId,
-      params.role
-    )
-    console.log('Recipients fetched:', recipients);
+    try {
+      const message = await messageRepo.create(messageData)
+      console.log('Created message:', {
+        id: message.id,
+        organization_id: message.organization_id,
+        status: message.status,
+        scheduled_for: message.scheduled_for
+      })
 
-    if (recipients.length > 0) {
-      console.log('Sending email via Resend...');
-      try {
-        const response = await resend.emails.send({
-          from: orgData.email_from,
-          to: recipients.map((r: { email: string }) => r.email),
-          subject: params.subject,
-          html: params.body,
-        });
-        console.log('Email sent successfully:', response);
+      // Only send immediately if not scheduled
+      if (!validatedData.scheduledAt) {
+        const recipients = await messageRepo.getRecipients(
+          validatedData.recipientType,
+          validatedData.recipientId,
+          validatedData.role
+        )
+        console.log('Recipients fetched:', recipients);
 
-        // Update message status and sent_at timestamp
-        await messageRepo.update(message.id, {
-          status: 'sent',
-          sent_at: new Date().toISOString(),
-        });
-        console.log('Message status updated to sent');
-      } catch (resendError) {
-        console.error('Error sending email via Resend:', resendError);
+        if (recipients.length > 0) {
+          console.log('Sending email via Resend...');
+          try {
+            const response = await resend.emails.send({
+              from: orgData.email_from,
+              to: recipients.map((r: { email: string }) => r.email),
+              subject: validatedData.subject,
+              html: validatedData.body,
+              scheduledAt: validatedData.scheduledAt
+            });
+            console.log('Email sent successfully:', response);
 
-        // Optionally update the message with an error status or message
-        await messageRepo.update(message.id, {
-          status: 'failed',
-          error_message: (resendError as Error).message,
-        });
-        return { error: (resendError as Error).message }
+            // Update message status to scheduled if there's a scheduledAt time
+            await messageRepo.update(message.id, {
+              status: validatedData.scheduledAt ? 'scheduled' : 'sent',
+              sent_at: validatedData.scheduledAt ? undefined : new Date().toISOString(),
+              scheduled_for: validatedData.scheduledAt ? new Date(validatedData.scheduledAt).toISOString() : undefined
+            });
+            console.log('Message status updated to sent');
+          } catch (resendError) {
+            console.error('Error sending email via Resend:', resendError);
+
+            // Optionally update the message with an error status or message
+            await messageRepo.update(message.id, {
+              status: 'failed',
+              error_message: (resendError as Error).message,
+            });
+            return { error: (resendError as Error).message }
+          }
+        } else {
+          console.log('No recipients found to send emails');
+        }
       }
-    } else {
-      console.log('No recipients found to send emails');
-    }
 
-    revalidatePath('/superadmin/messaging')
-    return { message }
+      revalidatePath('/superadmin/messaging')
+      return { message }
+    } catch (error) {
+      console.error('Error creating message:', error)
+      throw error
+    }
   } catch (error) {
+    if (error instanceof z.ZodError) {
+      return { error: error.errors[0].message }
+    }
     console.error('Error in sendMessage:', error)
     return { error: error instanceof Error ? error.message : 'Failed to send message' }
   }
@@ -149,7 +172,7 @@ export type MessageHistoryFilter = {
   senderId?: string
   recipientId?: string
   groupId?: string
-  status?: 'sent' | 'failed' | 'pending'
+  status?: 'sent' | 'failed' | 'pending' | 'scheduled' | 'cancelled'
   dateFrom?: string
   dateTo?: string
   searchTerm?: string
@@ -230,5 +253,48 @@ export async function getMessageHistory(filters: MessageHistoryFilter) {
   } catch (error) {
     console.error('Failed to fetch message history:', error)
     return []
+  }
+}
+
+export async function cancelScheduledMessage(messageId: string): Promise<void> {
+  try {
+    const supabase = await createClient()
+    const messageRepo = new MessageRepository(supabase)
+
+    // Get the message to check if it's scheduled
+    const message = await messageRepo.getById(messageId)
+    if (!message) {
+      throw new Error('Message not found')
+    }
+
+    if (message.status !== 'scheduled') {
+      throw new Error('Only scheduled messages can be cancelled')
+    }
+
+    // Cancel the message in Resend if it was scheduled there
+    if (message.scheduled_for) {
+      try {
+        // Note: You'll need to store the Resend message ID in your database
+        // to be able to cancel it. Add a resend_id column to your messages table.
+        if (message.resend_id) {
+          await resend.emails.cancel(message.resend_id)
+        }
+      } catch (error) {
+        console.error('Error cancelling message in Resend:', error)
+        // Continue with local cancellation even if Resend fails
+      }
+    }
+
+    // Update message status
+    await messageRepo.update(messageId, {
+      status: 'cancelled',
+      error_message: 'Cancelled by user',
+      updated_at: new Date().toISOString()
+    })
+
+    revalidatePath('/superadmin/messaging')
+  } catch (error) {
+    console.error('Error cancelling message:', error)
+    throw error
   }
 } 

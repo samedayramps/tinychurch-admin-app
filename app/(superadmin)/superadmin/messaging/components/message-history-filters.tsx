@@ -41,7 +41,7 @@ export function MessageHistoryFilters({
               value={filters.status || 'all'} 
               onValueChange={(value) => onFiltersChange({
                 ...filters,
-                status: value === 'all' ? undefined : value as 'sent' | 'failed' | 'pending'
+                status: value === 'all' ? undefined : value as 'sent' | 'failed' | 'pending' | 'scheduled' | 'cancelled'
               })}
             >
               <SelectTrigger>
@@ -52,6 +52,8 @@ export function MessageHistoryFilters({
                 <SelectItem value="sent">Sent</SelectItem>
                 <SelectItem value="failed">Failed</SelectItem>
                 <SelectItem value="pending">Pending</SelectItem>
+                <SelectItem value="scheduled">Scheduled</SelectItem>
+                <SelectItem value="cancelled">Cancelled</SelectItem>
               </SelectContent>
             </Select>
           </div>

@@ -40,16 +40,38 @@ export const formatCurrency = (amount: number, currency: string = 'USD'): string
  * @param format - Optional format style
  * @returns Formatted date string
  */
-export const formatDate = (date: Date | string, format: 'short' | 'long' = 'short'): string => {
+export const formatDate = (date: Date | string, format: 'short' | 'long' | 'full' = 'short'): string => {
   const dateObj = typeof date === 'string' ? new Date(date) : date
   
-  if (format === 'long') {
-    return dateObj.toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-    })
+  switch (format) {
+    case 'long':
+      return dateObj.toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+      })
+    case 'full':
+      return dateObj.toLocaleString('en-US', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        hour: 'numeric',
+        minute: '2-digit',
+        hour12: true
+      })
+    default:
+      return dateObj.toLocaleDateString('en-US')
   }
-  
-  return dateObj.toLocaleDateString('en-US')
+}
+
+/**
+ * Formats a time string in 12-hour format with AM/PM
+ * @param time - Time string in 24-hour format (HH:mm)
+ * @returns Formatted time string in 12-hour format
+ */
+export const formatTime = (time: string): string => {
+  const [hours, minutes] = time.split(':').map(Number)
+  const period = hours >= 12 ? 'PM' : 'AM'
+  const hour12 = hours % 12 || 12
+  return `${hour12}:${minutes.toString().padStart(2, '0')} ${period}`
 } 
