@@ -74,6 +74,9 @@ export async function middleware(request: NextRequest) {
 
     // Route-specific middleware selection
     if (request.nextUrl.pathname.startsWith('/superadmin')) {
+      if (request.nextUrl.pathname.startsWith('/superadmin/messaging')) {
+        return await superadminStack(request, response, finalNext)
+      }
       return await superadminStack(request, response, finalNext)
     }
 

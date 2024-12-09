@@ -18,11 +18,16 @@ export async function GET(request: Request) {
     return NextResponse.redirect(new URL('/sign-in', request.url))
   }
 
-  const { data: profile } = await supabase
+  const { data: profile, error: profileError } = await supabase
     .from('profiles')
     .select('is_superadmin')
     .eq('id', user.id)
     .single()
+
+  if (profileError) {
+    log.error('Error fetching profile', { profileError })
+    return NextResponse.redirect(new URL('/error', request.url))
+  }
 
   log.info('User profile fetched', { profile })
 

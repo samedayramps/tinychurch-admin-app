@@ -1,6 +1,11 @@
-import { Building2, Users, Plus } from 'lucide-react'
+import { Building2, Users, Plus, Mail } from 'lucide-react'
 
 export const superadminNavItems = [
+  {
+    title: "Dashboard",
+    href: "/superadmin/dashboard",
+    icon: Building2
+  },
   {
     title: "Organizations",
     href: "/superadmin/organizations",
@@ -10,6 +15,11 @@ export const superadminNavItems = [
     title: "Users",
     href: "/superadmin/users",
     icon: Users
+  },
+  {
+    title: "Messaging",
+    href: "/superadmin/messaging",
+    icon: Mail
   },
   {
     title: "Onboard Tenant",

@@ -5,7 +5,9 @@ import {
   Settings,
   Shield,
   Activity,
-  Plus
+  Plus,
+  Mail,
+  FileText
 } from "lucide-react"
 
 export const adminNavItems = [
@@ -58,18 +60,13 @@ export const adminNavItems = [
 
 export const superAdminNavItems = [
   {
-    title: "Overview",
+    title: "Main",
     items: [
       {
         title: "Dashboard",
         href: "/superadmin/dashboard",
         icon: LayoutDashboard
-      }
-    ]
-  },
-  {
-    title: "Management",
-    items: [
+      },
       {
         title: "Organizations",
         href: "/superadmin/organizations",
@@ -79,26 +76,36 @@ export const superAdminNavItems = [
         title: "Users",
         href: "/superadmin/users",
         icon: Users
-      },
-      {
-        title: "Tenant Onboarding",
-        href: "/superadmin/onboarding",
-        icon: Plus
       }
     ]
   },
   {
-    title: "System",
+    title: "Communication",
     items: [
       {
-        title: "Access Control",
-        href: "/superadmin/access",
-        icon: Shield
+        title: "Messaging",
+        href: "/superadmin/messaging",
+        icon: Mail
+      },
+      {
+        title: "Templates",
+        href: "/superadmin/templates",
+        icon: FileText
+      }
+    ]
+  },
+  {
+    title: "Administration",
+    items: [
+      {
+        title: "Onboard Tenant",
+        href: "/superadmin/onboarding",
+        icon: Plus
       },
       {
         title: "Audit Logs",
         href: "/superadmin/audit",
-        icon: Activity
+        icon: FileText
       },
       {
         title: "Settings",

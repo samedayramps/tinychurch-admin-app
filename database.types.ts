@@ -233,6 +233,134 @@ export type Database = {
           },
         ]
       }
+      message_templates: {
+        Row: {
+          body: string
+          category: string | null
+          created_at: string
+          created_by: string
+          description: string | null
+          id: string
+          name: string
+          organization_id: string | null
+          subject: string
+          updated_at: string
+          variables: Json | null
+        }
+        Insert: {
+          body: string
+          category?: string | null
+          created_at?: string
+          created_by: string
+          description?: string | null
+          id?: string
+          name: string
+          organization_id?: string | null
+          subject: string
+          updated_at?: string
+          variables?: Json | null
+        }
+        Update: {
+          body?: string
+          category?: string | null
+          created_at?: string
+          created_by?: string
+          description?: string | null
+          id?: string
+          name?: string
+          organization_id?: string | null
+          subject?: string
+          updated_at?: string
+          variables?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "message_templates_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "message_templates_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      messages: {
+        Row: {
+          body: string
+          created_at: string
+          error_message: string | null
+          group_id: string | null
+          id: string
+          organization_id: string | null
+          recipient_id: string | null
+          sender_id: string
+          sent_at: string | null
+          status: Database["public"]["Enums"]["message_status"]
+          subject: string
+        }
+        Insert: {
+          body: string
+          created_at?: string
+          error_message?: string | null
+          group_id?: string | null
+          id?: string
+          organization_id?: string | null
+          recipient_id?: string | null
+          sender_id: string
+          sent_at?: string | null
+          status?: Database["public"]["Enums"]["message_status"]
+          subject: string
+        }
+        Update: {
+          body?: string
+          created_at?: string
+          error_message?: string | null
+          group_id?: string | null
+          id?: string
+          organization_id?: string | null
+          recipient_id?: string | null
+          sender_id?: string
+          sent_at?: string | null
+          status?: Database["public"]["Enums"]["message_status"]
+          subject?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "messages_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "groups"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "messages_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "messages_recipient_id_fkey"
+            columns: ["recipient_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "messages_sender_id_fkey"
+            columns: ["sender_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       organization_limits: {
         Row: {
           current_usage: number | null
@@ -909,6 +1037,9 @@ export type Database = {
         | "other"
       group_visibility: "public" | "private" | "hidden"
       invitation_status: "pending" | "accepted" | "rejected" | "cancelled"
+      message_priority: "low" | "normal" | "high" | "urgent"
+      message_status: "pending" | "sent" | "failed"
+      message_type: "email" | "notification" | "announcement" | "alert"
       user_role: "admin" | "staff" | "ministry_leader" | "member" | "visitor"
       visibility_level: "public" | "members_only" | "staff_only" | "private"
     }

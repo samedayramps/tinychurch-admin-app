@@ -56,6 +56,9 @@
     "zod": "^3.23.8"
   },
   "devDependencies": {
+    "@tiptap/extension-placeholder": "^2.10.3",
+    "@tiptap/react": "^2.10.3",
+    "@tiptap/starter-kit": "^2.10.3",
     "@types/google.maps": "^3.58.1",
     "@types/node": "22.9.0",
     "@types/react": "^18.3.12",

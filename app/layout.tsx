@@ -1,5 +1,6 @@
 import { GeistSans } from 'geist/font/sans'
 import { ThemeProvider } from '@/components/theme-provider'
+import { AuthProvider } from '@/providers/auth-provider'
 import './globals.css'
 import { Toaster } from "@/components/ui/toaster"
 import { ImpersonationProvider } from '@/lib/contexts/impersonation-context'
@@ -34,12 +35,14 @@ export default async function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          <ImpersonationProvider>
-            <ImpersonationBorder />
-            <main className="min-h-screen">
-              {children}
-            </main>
-          </ImpersonationProvider>
+          <AuthProvider>
+            <ImpersonationProvider>
+              <ImpersonationBorder />
+              <main className="min-h-screen">
+                {children}
+              </main>
+            </ImpersonationProvider>
+          </AuthProvider>
           <Toaster />
         </ThemeProvider>
       </body>
