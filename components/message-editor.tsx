@@ -35,7 +35,13 @@ export function MessageEditor({
     content,
     onUpdate: ({ editor }) => {
       onChange(editor.getHTML())
-    }
+    },
+    editorProps: {
+      attributes: {
+        class: 'p-4 min-h-[200px] prose prose-sm max-w-none'
+      }
+    },
+    immediatelyRender: false
   })
 
   if (!editor) return null
@@ -99,7 +105,7 @@ export function MessageEditor({
           <Redo className="h-4 w-4" />
         </Button>
       </div>
-      <EditorContent editor={editor} className="p-4 min-h-[200px] prose prose-sm max-w-none" />
+      <EditorContent editor={editor} />
     </div>
   )
 } 

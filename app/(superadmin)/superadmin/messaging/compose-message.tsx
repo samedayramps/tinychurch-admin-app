@@ -62,12 +62,21 @@ export function ComposeMessage({
   const handleSubmit = async () => {
     try {
       setLoading(true)
+
+      // Ensure a valid organization ID is used
+      const orgId = selectedOrg === 'all' ? null : selectedOrg;
+
+      if (!orgId) {
+        throw new Error('Please select a valid organization to send the message on behalf of.')
+      }
+
       const result = await sendMessage({
         subject,
         body,
         recipientType,
         recipientId,
-        role: recipientType === 'organization' ? role : undefined
+        role: recipientType === 'organization' ? role : undefined,
+        organizationId: orgId,
       })
 
       if (result.error) {

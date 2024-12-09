@@ -6,9 +6,30 @@ import type { TenantContext } from '../context/TenantContext'
 type MessageRow = Database['public']['Tables']['messages']['Row']
 type MessageInsert = Database['public']['Tables']['messages']['Insert']
 type Profile = Database['public']['Tables']['profiles']['Row']
+type Group = Database['public']['Tables']['groups']['Row']
+type Organization = Database['public']['Tables']['organizations']['Row']
 
 export type MessageQueryResponse = MessageRow & {
-  sender: Pick<Profile, 'id' | 'email' | 'full_name' | 'avatar_url'>
+  sender: {
+    id: string
+    email: string
+    full_name: string | null
+    avatar_url: string | null
+  }
+  recipient?: {
+    id: string
+    email: string
+    full_name: string | null
+  }
+  group?: {
+    id: string
+    name: string
+  }
+  organization?: {
+    id: string
+    name: string
+  }
+  error?: string
 }
 
 export type RecipientProfile = Pick<Profile, 'id' | 'email'>
@@ -30,7 +51,7 @@ export class MessageRepository extends BaseRepositoryBase<'messages'> {
       .insert(data)
       .select(`
         *,
-        sender:profiles!inner (
+        sender:profiles!messages_sender_id_fkey (
           id,
           email,
           full_name,
@@ -95,5 +116,17 @@ export class MessageRepository extends BaseRepositoryBase<'messages'> {
       default:
         throw new Error('Invalid recipient type')
     }
+  }
+
+  async update(id: string, data: Partial<MessageRow>) {
+    const { data: updatedMessage, error } = await this.supabase
+      .from(this.tableName)
+      .update(data)
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return updatedMessage;
   }
 } 

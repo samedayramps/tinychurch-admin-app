@@ -361,6 +361,44 @@ export type Database = {
           },
         ]
       }
+      messaging_settings: {
+        Row: {
+          created_at: string | null
+          default_from_name: string | null
+          default_reply_to: string | null
+          id: string
+          notifications_enabled: boolean | null
+          organization_id: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          default_from_name?: string | null
+          default_reply_to?: string | null
+          id?: string
+          notifications_enabled?: boolean | null
+          organization_id?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          default_from_name?: string | null
+          default_reply_to?: string | null
+          id?: string
+          notifications_enabled?: boolean | null
+          organization_id?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "messaging_settings_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: true
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       organization_limits: {
         Row: {
           current_usage: number | null
@@ -525,6 +563,7 @@ export type Database = {
           created_at: string | null
           deleted_at: string | null
           description: string | null
+          email_from: string
           id: string
           name: string
           slug: string
@@ -540,6 +579,7 @@ export type Database = {
           created_at?: string | null
           deleted_at?: string | null
           description?: string | null
+          email_from: string
           id?: string
           name: string
           slug: string
@@ -555,6 +595,7 @@ export type Database = {
           created_at?: string | null
           deleted_at?: string | null
           description?: string | null
+          email_from?: string
           id?: string
           name?: string
           slug?: string
