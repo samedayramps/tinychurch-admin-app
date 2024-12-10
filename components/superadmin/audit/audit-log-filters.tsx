@@ -43,6 +43,10 @@ export function AuditLogFilters({ onFilterChange, organizations }: AuditLogFilte
   const [organizationId, setOrganizationId] = useState<string>('')
   const [correlationId, setCorrelationId] = useState('')
 
+  const handleDateRangeChange = (range: DateRange | undefined) => {
+    setDateRange(range || null)
+  }
+
   const handleFilterChange = () => {
     onFilterChange({
       search,
@@ -79,8 +83,7 @@ export function AuditLogFilters({ onFilterChange, organizations }: AuditLogFilte
         />
 
         <DateRangePicker
-          value={dateRange}
-          onChange={setDateRange}
+          onChange={handleDateRangeChange}
         />
         
         <Select value={severity} onValueChange={setSeverity}>

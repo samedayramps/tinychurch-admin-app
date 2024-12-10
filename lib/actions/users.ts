@@ -5,6 +5,7 @@ import { revalidatePath } from 'next/cache'
 import { getCurrentUser } from '@/lib/dal'
 import { type Database } from '@/database.types'
 import { getOrganizationInvitationEmailContent } from '@/lib/utils/email'
+import { createServerUtils } from '@/lib/utils/supabase/server-utils'
 
 export async function updateUserAction(userId: string, data: {
   first_name: string
@@ -299,4 +300,32 @@ export async function inviteUserAction(data: {
   if (membershipError) throw membershipError
 
   revalidatePath('/superadmin/users')
+}  
+
+export async function fixUserStatuses() {
+  const supabase = await createServerUtils(true)
+  
+  // Get all users marked as invited
+  const { data: invitedUsers } = await supabase
+    .from('profiles')
+    .select('id, email')
+    .eq('status', 'invited')
+  
+  if (!invitedUsers) return
+  
+  for (const user of invitedUsers) {
+    // Check actual auth status
+    const { data: authUser } = await supabase.auth.admin.getUserById(user.id)
+    
+    if (authUser?.user?.email_confirmed_at) {
+      // User has confirmed email, update status to active
+      await supabase
+        .from('profiles')
+        .update({
+          status: 'active',
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', user.id)
+    }
+  }
 }  

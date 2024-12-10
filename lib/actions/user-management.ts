@@ -5,16 +5,32 @@ import { createServerUtils } from '@/lib/utils/supabase/server-utils'
 export async function resendInvitation(userId: string) {
   const supabase = await createServerUtils(true)
   
-  // Get user details
+  // Get user details with auth status
   const { data: user } = await supabase
     .from('profiles')
-    .select('email')
+    .select('email, status')
     .eq('id', userId)
     .single()
     
   if (!user) throw new Error('User not found')
+
+  // Check if user has already registered
+  const { data: authUser } = await supabase.auth.admin.getUserById(userId)
   
-  // Use Supabase's built-in reinvite
+  if (authUser?.user?.email_confirmed_at) {
+    // User has already registered, just update profile status
+    await supabase
+      .from('profiles')
+      .update({
+        status: 'active',
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', userId)
+      
+    return { message: 'User is already registered and active' }
+  }
+  
+  // If not registered, proceed with reinvite
   const { error } = await supabase.auth.admin.inviteUserByEmail(user.email, {
     redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/callback`
   })
@@ -29,6 +45,8 @@ export async function resendInvitation(userId: string) {
       status: 'invited'
     })
     .eq('id', userId)
+
+  return { message: 'Invitation resent successfully' }
 }
 
 export async function suspendUser(userId: string) {

@@ -9,6 +9,134 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      calendar_events: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          description: string | null
+          end_date: string | null
+          end_time: string
+          frequency: Database["public"]["Enums"]["event_frequency"]
+          id: string
+          location: Json
+          metadata: Json | null
+          organization_id: string | null
+          participant_groups: string[] | null
+          participant_type: Database["public"]["Enums"]["participant_type"]
+          participant_users: string[] | null
+          recurring_days: number[] | null
+          recurring_until: string | null
+          start_date: string
+          start_time: string
+          status: Database["public"]["Enums"]["event_status"]
+          timezone: string
+          title: string
+          updated_at: string
+          use_different_address: boolean | null
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          end_date?: string | null
+          end_time: string
+          frequency?: Database["public"]["Enums"]["event_frequency"]
+          id?: string
+          location?: Json
+          metadata?: Json | null
+          organization_id?: string | null
+          participant_groups?: string[] | null
+          participant_type?: Database["public"]["Enums"]["participant_type"]
+          participant_users?: string[] | null
+          recurring_days?: number[] | null
+          recurring_until?: string | null
+          start_date: string
+          start_time: string
+          status?: Database["public"]["Enums"]["event_status"]
+          timezone?: string
+          title: string
+          updated_at?: string
+          use_different_address?: boolean | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          end_date?: string | null
+          end_time?: string
+          frequency?: Database["public"]["Enums"]["event_frequency"]
+          id?: string
+          location?: Json
+          metadata?: Json | null
+          organization_id?: string | null
+          participant_groups?: string[] | null
+          participant_type?: Database["public"]["Enums"]["participant_type"]
+          participant_users?: string[] | null
+          recurring_days?: number[] | null
+          recurring_until?: string | null
+          start_date?: string
+          start_time?: string
+          status?: Database["public"]["Enums"]["event_status"]
+          timezone?: string
+          title?: string
+          updated_at?: string
+          use_different_address?: boolean | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "calendar_events_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      email_logs: {
+        Row: {
+          created_at: string | null
+          error: string | null
+          event_id: string | null
+          id: string
+          organization_id: string | null
+          recipient_email: string
+          status: string
+        }
+        Insert: {
+          created_at?: string | null
+          error?: string | null
+          event_id?: string | null
+          id?: string
+          organization_id?: string | null
+          recipient_email: string
+          status: string
+        }
+        Update: {
+          created_at?: string | null
+          error?: string | null
+          event_id?: string | null
+          id?: string
+          organization_id?: string | null
+          recipient_email?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "email_logs_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "calendar_events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "email_logs_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       group_invitations: {
         Row: {
           created_at: string
@@ -579,6 +707,7 @@ export type Database = {
           deleted_at: string | null
           description: string | null
           email_from: string
+          email_settings: Json | null
           id: string
           name: string
           slug: string
@@ -595,6 +724,7 @@ export type Database = {
           deleted_at?: string | null
           description?: string | null
           email_from: string
+          email_settings?: Json | null
           id?: string
           name: string
           slug: string
@@ -611,6 +741,7 @@ export type Database = {
           deleted_at?: string | null
           description?: string | null
           email_from?: string
+          email_settings?: Json | null
           id?: string
           name?: string
           slug?: string
@@ -1084,6 +1215,8 @@ export type Database = {
         | "role_change"
       audit_severity: "info" | "warning" | "error" | "critical"
       auth_status: "invited" | "active" | "suspended" | "inactive" | "deleted"
+      event_frequency: "once" | "daily" | "weekly" | "monthly" | "yearly"
+      event_status: "scheduled" | "cancelled" | "completed"
       group_member_role: "leader" | "member"
       group_type:
         | "ministry"
@@ -1096,6 +1229,7 @@ export type Database = {
       message_priority: "low" | "normal" | "high" | "urgent"
       message_status: "pending" | "sent" | "failed" | "scheduled" | "cancelled"
       message_type: "email" | "notification" | "announcement" | "alert"
+      participant_type: "all" | "groups" | "individuals"
       user_role: "admin" | "staff" | "ministry_leader" | "member" | "visitor"
       visibility_level: "public" | "members_only" | "staff_only" | "private"
     }

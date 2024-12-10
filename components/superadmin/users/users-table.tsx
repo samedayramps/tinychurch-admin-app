@@ -158,7 +158,22 @@ export function UsersTable({ users }: UsersTableProps) {
                       </Link>
                     </DropdownMenuItem>
                     {user.status === 'invited' && (
-                      <DropdownMenuItem onClick={() => resendInvitation(user.id)}>
+                      <DropdownMenuItem onClick={async () => {
+                        try {
+                          const result = await resendInvitation(user.id)
+                          toast({
+                            title: "Success",
+                            description: result.message,
+                          })
+                          router.refresh()
+                        } catch (error) {
+                          toast({
+                            title: "Error",
+                            description: error instanceof Error ? error.message : "Failed to resend invitation",
+                            variant: "destructive",
+                          })
+                        }
+                      }}>
                         <MailIcon className="w-4 h-4 mr-2" />
                         Resend Invitation
                       </DropdownMenuItem>

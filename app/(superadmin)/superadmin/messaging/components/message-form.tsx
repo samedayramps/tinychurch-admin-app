@@ -1,13 +1,19 @@
 'use client'
 
-import { Input } from '@/components/ui/input'
-import { MessageEditor } from '@/components/message-editor'
-import { Button } from '@/components/ui/button'
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
-import { Calendar } from '@/components/ui/calendar'
+import { useState } from 'react'
+import { format, addHours, isBefore, addMinutes } from 'date-fns'
 import { CalendarIcon, Clock } from 'lucide-react'
-import { format, isSameDay } from 'date-fns'
+import { Input } from '@/components/ui/input'
+import { Button } from '@/components/ui/button'
+import { Calendar } from '@/components/ui/calendar'
 import { TimePicker } from '@/components/ui/time-picker'
+import { MessageEditor } from '@/components/message-editor'
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover'
+import { cn } from '@/lib/utils'
 import type { Database } from '@/database.types'
 import { formatTime } from "@/lib/utils/format"
 import { useEffect } from 'react'
@@ -22,9 +28,9 @@ interface MessageFormProps {
   body: string
   scheduledAt?: Date
   defaultSendTime?: string
-  onSubjectChange: (subject: string) => void
-  onBodyChange: (body: string) => void
-  onScheduleChange: (date?: Date) => void
+  onSubjectChange: (value: string) => void
+  onBodyChange: (value: string) => void
+  onScheduleChange: (value: Date | undefined) => void
 }
 
 export function MessageForm({
@@ -36,57 +42,55 @@ export function MessageForm({
   onBodyChange,
   onScheduleChange,
 }: MessageFormProps) {
-  const handleTimeChange = (timeString: string) => {
-    if (!scheduledAt) return
-    
-    const [hours, minutes] = timeString.split(':').map(Number)
-    const newDate = new Date(scheduledAt)
-    newDate.setHours(hours, minutes)
-
-    // Validate the new date
-    try {
-      schemas.messageForm.shape.scheduledAt.parse(newDate.toISOString())
-      onScheduleChange(newDate)
-    } catch (error) {
-      if (error instanceof z.ZodError) {
-        toast({
-          title: "Invalid Time",
-          description: "Scheduled time must be in the future",
-          variant: "destructive"
-        })
-      }
-    }
+  const [isTimePickerOpen, setIsTimePickerOpen] = useState(false)
+  
+  // Calculate the maximum allowed scheduling date (72 hours from now)
+  const maxScheduleDate = addHours(new Date(), 72)
+  
+  // Disable dates that are more than 72 hours away or in the past
+  const disableDate = (date: Date) => {
+    const now = new Date()
+    return isBefore(date, now) || isBefore(maxScheduleDate, date)
   }
 
-  const handleDateSelect = (date?: Date) => {
-    if (date && defaultSendTime) {
-      const [hours, minutes] = defaultSendTime.split(':').map(Number)
-      const newDate = new Date(date)
-      newDate.setHours(hours, minutes)
+  // Handle date selection
+  const handleDateSelect = (date: Date | undefined) => {
+    if (!date) {
+      onScheduleChange(undefined)
+      return
+    }
 
-      // Validate the new date
-      try {
-        schemas.messageForm.shape.scheduledAt.parse(newDate.toISOString())
-        onScheduleChange(newDate)
-      } catch (error) {
-        if (error instanceof z.ZodError) {
-          toast({
-            title: "Invalid Date",
-            description: "Scheduled date must be in the future",
-            variant: "destructive"
-          })
-        }
-      }
+    // If we already have a scheduled time, preserve it
+    if (scheduledAt) {
+      const newDate = new Date(date)
+      newDate.setHours(scheduledAt.getHours())
+      newDate.setMinutes(scheduledAt.getMinutes())
+      onScheduleChange(newDate)
     } else {
+      // Default to current time if no time was previously selected
+      const now = new Date()
+      date.setHours(now.getHours())
+      date.setMinutes(now.getMinutes())
       onScheduleChange(date)
     }
   }
 
-  // Add a function to disable past dates
-  const disablePastDates = (date: Date) => {
+  // Handle time selection
+  const handleTimeChange = (timeString: string) => {
+    if (!scheduledAt) return
+
+    const [hours, minutes] = timeString.split(':').map(Number)
+    const newDate = new Date(scheduledAt)
+    newDate.setHours(hours)
+    newDate.setMinutes(minutes)
+
+    // Ensure the selected time is not in the past
     const now = new Date()
-    now.setHours(0, 0, 0, 0) // Reset time to start of day for date comparison
-    return date < now
+    if (isBefore(newDate, now)) {
+      newDate.setDate(newDate.getDate() + 1)
+    }
+
+    onScheduleChange(newDate)
   }
 
   return (
@@ -110,12 +114,15 @@ export function MessageForm({
 
       <div className="space-y-2">
         <label className="text-sm font-medium">Schedule (Optional)</label>
-        <div className="flex gap-2">
+        <div className="flex items-center gap-2">
           <Popover>
             <PopoverTrigger asChild>
-              <Button variant="outline" className="w-[180px]">
+              <Button variant="outline" className={cn(
+                "justify-start text-left font-normal w-[240px]",
+                !scheduledAt && "text-muted-foreground"
+              )}>
                 <CalendarIcon className="mr-2 h-4 w-4" />
-                {scheduledAt ? format(scheduledAt, 'PP') : 'Pick date'}
+                {scheduledAt ? format(scheduledAt, 'PPP') : "Schedule for later"}
               </Button>
             </PopoverTrigger>
             <PopoverContent className="w-auto p-0" align="start">
@@ -123,28 +130,52 @@ export function MessageForm({
                 mode="single"
                 selected={scheduledAt}
                 onSelect={handleDateSelect}
-                disabled={disablePastDates}
+                disabled={disableDate}
                 initialFocus
-                fromDate={new Date()} // Only allow dates from today
               />
+              <div className="p-3 border-t">
+                <small className="text-muted-foreground">
+                  Messages can only be scheduled up to 72 hours in advance
+                </small>
+              </div>
             </PopoverContent>
           </Popover>
 
           {scheduledAt && (
-            <div className="space-y-1">
-              <TimePicker
-                value={scheduledAt ? format(scheduledAt, 'HH:mm') : undefined}
-                onChange={handleTimeChange}
-                minTime={isSameDay(scheduledAt, new Date()) ? format(new Date(), 'HH:mm') : undefined}
-              />
-              {defaultSendTime && format(scheduledAt, 'HH:mm') === defaultSendTime && (
-                <p className="text-xs text-muted-foreground">
-                  Using default send time ({formatTime(defaultSendTime)})
-                </p>
-              )}
-            </div>
+            <Popover open={isTimePickerOpen} onOpenChange={setIsTimePickerOpen}>
+              <PopoverTrigger asChild>
+                <Button variant="outline" className="w-[120px]">
+                  <Clock className="mr-2 h-4 w-4" />
+                  {format(scheduledAt, 'HH:mm')}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <div className="p-3">
+                  <TimePicker
+                    value={format(scheduledAt, 'HH:mm')}
+                    onChange={handleTimeChange}
+                    minTime={isBefore(scheduledAt, new Date()) ? format(addMinutes(new Date(), 5), 'HH:mm') : undefined}
+                  />
+                </div>
+              </PopoverContent>
+            </Popover>
           )}
         </div>
+
+        {scheduledAt && (
+          <div className="flex items-center gap-2">
+            <Button 
+              variant="ghost" 
+              size="sm"
+              onClick={() => onScheduleChange(undefined)}
+            >
+              Clear schedule
+            </Button>
+            <p className="text-sm text-muted-foreground">
+              Will be sent {format(scheduledAt, 'PPPp')}
+            </p>
+          </div>
+        )}
       </div>
     </div>
   )

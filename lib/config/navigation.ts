@@ -7,7 +7,8 @@ import {
   Activity,
   Plus,
   Mail,
-  FileText
+  FileText,
+  Calendar
 } from "lucide-react"
 
 export const adminNavItems = [
@@ -95,17 +96,22 @@ export const superAdminNavItems = [
     ]
   },
   {
-    title: "Administration",
+    title: "System",
     items: [
       {
-        title: "Onboard Tenant",
-        href: "/superadmin/onboarding",
-        icon: Plus
+        title: "Events",
+        href: "/superadmin/events",
+        icon: Calendar
       },
       {
         title: "Audit Logs",
         href: "/superadmin/audit",
-        icon: FileText
+        icon: Activity
+      },
+      {
+        title: "Onboard Tenant",
+        href: "/superadmin/onboarding",
+        icon: Plus
       },
       {
         title: "Settings",

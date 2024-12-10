@@ -27,6 +27,7 @@ import { useState } from "react"
 import { useRouter } from "next/navigation"
 import type { OrganizationWithStats } from "@/lib/dal/repositories/organization"
 import { updateOrganizationSettings } from "@/lib/actions/organization"
+import { AddressField } from "@/components/ui/form/address-field"
 
 const formSchema = z.object({
   name: z.string().min(2, {
@@ -43,13 +44,6 @@ const formSchema = z.object({
   website_url: z.string().url().optional().nullable(),
   status: z.enum(['active', 'inactive', 'suspended']),
   timezone: z.string().optional().nullable(),
-  address: z.object({
-    street: z.string().optional(),
-    city: z.string().optional(),
-    state: z.string().optional(),
-    postal_code: z.string().optional(),
-    country: z.string().optional(),
-  }).optional().nullable(),
   settings: z.object({
     features_enabled: z.array(z.string()).optional(),
     branding: z.object({
@@ -57,6 +51,13 @@ const formSchema = z.object({
       primary_color: z.string().optional(),
     }).optional(),
     email_templates: z.record(z.unknown()).optional(),
+  }).optional().nullable(),
+  address: z.object({
+    street: z.string().optional(),
+    city: z.string().optional(),
+    state: z.string().optional(),
+    postal_code: z.string().optional(),
+    country: z.string().optional(),
   }).optional().nullable(),
 })
 
@@ -82,14 +83,8 @@ export function OrganizationEditForm({ organization }: OrganizationEditFormProps
       website_url: organization.website_url,
       status: organization.status as 'active' | 'inactive' | 'suspended',
       timezone: organization.timezone,
-      address: organization.address as any || {
-        street: '',
-        city: '',
-        state: '',
-        postal_code: '',
-        country: '',
-      },
       settings: organization.settings,
+      address: organization.address as FormValues['address'] || null,
     },
   })
 
@@ -97,13 +92,16 @@ export function OrganizationEditForm({ organization }: OrganizationEditFormProps
     setIsLoading(true)
     try {
       const formData = new FormData()
+      
+      // Handle basic fields
       Object.entries(data).forEach(([key, value]) => {
-        if (key === 'settings') {
+        if (key === 'settings' || key === 'address') {
           formData.append(key, JSON.stringify(value))
         } else {
           formData.append(key, value?.toString() || '')
         }
       })
+      
       formData.append('id', organization.id)
 
       await updateOrganizationSettings(formData)
@@ -116,6 +114,7 @@ export function OrganizationEditForm({ organization }: OrganizationEditFormProps
       router.push(`/superadmin/organizations/${organization.id}`)
       router.refresh()
     } catch (error) {
+      console.error('Form submission error:', error)
       toast({
         title: "Error",
         description: error instanceof Error ? error.message : "Something went wrong",
@@ -279,77 +278,12 @@ export function OrganizationEditForm({ organization }: OrganizationEditFormProps
 
         <div className="space-y-4">
           <h3 className="text-lg font-medium">Address</h3>
-          <div className="grid gap-4 md:grid-cols-2">
-            <FormField
-              control={form.control}
-              name="address.street"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Street Address</FormLabel>
-                  <FormControl>
-                    <Input {...field} value={field.value || ''} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="address.city"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>City</FormLabel>
-                  <FormControl>
-                    <Input {...field} value={field.value || ''} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="address.state"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>State/Province</FormLabel>
-                  <FormControl>
-                    <Input {...field} value={field.value || ''} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="address.postal_code"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Postal Code</FormLabel>
-                  <FormControl>
-                    <Input {...field} value={field.value || ''} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="address.country"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Country</FormLabel>
-                  <FormControl>
-                    <Input {...field} value={field.value || ''} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          </div>
+          <AddressField
+            control={form.control}
+            name="address"
+            label="Organization Address"
+            description="Primary business address"
+          />
         </div>
 
         <div className="flex justify-end">
