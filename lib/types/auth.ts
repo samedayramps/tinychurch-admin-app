@@ -47,7 +47,7 @@ export interface Organization {
   id: string
   name: string
   slug: string
-  settings: Record<string, any>
+  settings?: Record<string, any>
 }
 
 export interface ImpersonationStatus {

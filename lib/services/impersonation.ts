@@ -77,16 +77,34 @@ export class ImpersonationService {
   }
 
   async getStatus(userId: string) {
-    const status = await this.impersonationRepo.getImpersonationStatus(userId)
-    const impersonatingId = ImpersonationCookies.get()
+    try {
+      console.log('Checking status for user:', userId);
+      
+      // Check for active session in database using the repository
+      const session = await this.impersonationRepo.getActiveSession(userId);
+      console.log('Session query result:', session);
 
-    // Only consider impersonation active if both metadata and cookie exist
-    const isActive = !!status && !!impersonatingId
+      const impersonatingId = await ImpersonationCookies.get();
+      console.log('Cookie impersonation ID:', impersonatingId);
 
-    return {
-      isImpersonating: isActive,
-      impersonatingId: isActive ? status?.impersonating : null,
-      realUserId: isActive ? status?.original_user : null
+      // Only consider impersonation active if both session and cookie exist
+      const isActive = !!session && !!impersonatingId;
+
+      const status = {
+        isImpersonating: isActive,
+        impersonatingId: isActive ? session?.target_user_id : null,
+        realUserId: isActive ? session?.real_user_id : null
+      };
+
+      console.log('Returning status:', status);
+      return status;
+    } catch (error) {
+      console.error('Error getting impersonation status:', error);
+      return {
+        isImpersonating: false,
+        impersonatingId: null,
+        realUserId: null
+      };
     }
   }
 }

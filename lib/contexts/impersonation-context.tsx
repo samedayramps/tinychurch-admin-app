@@ -33,7 +33,13 @@ export function ImpersonationProvider({ children }: { children: React.ReactNode 
           'Cache-Control': 'no-cache'
         }
       })
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`)
+      }
+      
       const data = await response.json()
+      console.log('Impersonation status:', data)
 
       setIsImpersonating(data.isImpersonating)
       setImpersonatingId(data.impersonatingId)

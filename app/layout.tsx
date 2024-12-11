@@ -5,6 +5,7 @@ import './globals.css'
 import { Toaster } from "@/components/ui/toaster"
 import { ImpersonationProvider } from '@/lib/contexts/impersonation-context'
 import { ImpersonationBorder } from '@/components/impersonation/border'
+import { AuthDebug } from '@/components/debug/auth-status'
 
 export const metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || 'https://tinychurch.app'),
@@ -41,6 +42,7 @@ export default async function RootLayout({
               <main className="min-h-screen">
                 {children}
               </main>
+              <AuthDebug />
             </ImpersonationProvider>
           </AuthProvider>
           <Toaster />

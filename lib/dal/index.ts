@@ -31,7 +31,6 @@ export const getCurrentUser = cache(async () => {
 
 export const getUserProfile = cache(async (userId?: string) => {
   if (!userId) {
-    // If no userId provided, fall back to current user
     const user = await getCurrentUser()
     if (!user) return null
     userId = user.id
@@ -80,8 +79,12 @@ export const getOrganizationMembership = cache(async () => {
   return data
 })
 
-// Re-export all DAL functions for convenient imports
+// Export repositories
+export {
+  OrganizationSettingsRepository
+}
+
+// Re-export repositories
 export * from './repositories/organization'
 export * from './repositories/profile'
 export * from './repositories/audit-log'
-export { OrganizationSettingsRepository }

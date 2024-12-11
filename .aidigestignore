@@ -1,0 +1,58 @@
+# Build and cache directories
+.next/
+node_modules/
+build/
+dist/
+coverage/
+.cache/
+
+# Environment and local config files
+.env*
+.vscode/
+*.local
+
+# Package manager files
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# Type definition files
+*.d.ts
+database.types.ts
+
+# Test files
+**/*.test.ts
+**/*.test.tsx
+**/*.spec.ts
+**/*.spec.tsx
+__tests__/
+__mocks__/
+
+# Configuration files
+tsconfig.json
+next.config.js
+postcss.config.js
+prettier.config.js
+.prettierrc
+.eslintrc*
+components.json
+
+# Documentation
+README.md
+CHANGELOG.md
+LICENSE
+*.md
+
+# UI component library files (since they're from shadcn/ui)
+components/ui/*.tsx
+
+# Generated files
+*.tsbuildinfo
+
+# Version control
+.git/
+.gitignore
+
+# Supabase
+supabase/.branches
+supabase/.temp

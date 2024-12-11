@@ -361,6 +361,33 @@ export type Database = {
           },
         ]
       }
+      impersonation_sessions: {
+        Row: {
+          created_at: string
+          expires_at: string
+          id: string
+          metadata: Json | null
+          real_user_id: string
+          target_user_id: string
+        }
+        Insert: {
+          created_at?: string
+          expires_at: string
+          id?: string
+          metadata?: Json | null
+          real_user_id: string
+          target_user_id: string
+        }
+        Update: {
+          created_at?: string
+          expires_at?: string
+          id?: string
+          metadata?: Json | null
+          real_user_id?: string
+          target_user_id?: string
+        }
+        Relationships: []
+      }
       message_templates: {
         Row: {
           body: string
@@ -911,11 +938,34 @@ export type Database = {
         }
         Returns: string[]
       }
+      are_in_same_organization: {
+        Args: {
+          user_a: string
+          user_b: string
+        }
+        Returns: boolean
+      }
       avals: {
         Args: {
           "": unknown
         }
         Returns: string[]
+      }
+      check_current_user_superadmin: {
+        Args: Record<PropertyKey, never>
+        Returns: boolean
+      }
+      check_superadmin_status: {
+        Args: {
+          user_id: string
+        }
+        Returns: boolean
+      }
+      check_user_org_access: {
+        Args: {
+          org_id: string
+        }
+        Returns: boolean
       }
       citext:
         | {
@@ -977,6 +1027,49 @@ export type Database = {
           hs: unknown
         }
         Returns: Record<string, unknown>[]
+      }
+      end_impersonation: {
+        Args: {
+          p_session_id: string
+        }
+        Returns: boolean
+      }
+      get_active_impersonation: {
+        Args: {
+          p_user_id: string
+        }
+        Returns: {
+          session_id: string
+          real_user_id: string
+          target_user_id: string
+        }[]
+      }
+      get_impersonatable_users: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          id: string
+          email: string
+          full_name: string
+          is_superadmin: boolean
+          organization_members: Json
+        }[]
+      }
+      get_user_organization: {
+        Args: {
+          user_id: string
+        }
+        Returns: Json
+      }
+      get_user_profile: {
+        Args: {
+          user_id: string
+        }
+        Returns: {
+          id: string
+          email: string
+          is_superadmin: boolean
+          is_active: boolean
+        }[]
       }
       ghstore_compress: {
         Args: {
@@ -1129,11 +1222,32 @@ export type Database = {
         }
         Returns: number
       }
+      is_in_same_organization: {
+        Args: {
+          target_user_id: string
+        }
+        Returns: boolean
+      }
       is_invitation_active: {
         Args: {
           used_at: string
           expires_at: string
         }
+        Returns: boolean
+      }
+      is_superadmin:
+        | {
+            Args: Record<PropertyKey, never>
+            Returns: boolean
+          }
+        | {
+            Args: {
+              user_id: string
+            }
+            Returns: boolean
+          }
+      is_user_superadmin: {
+        Args: Record<PropertyKey, never>
         Returns: boolean
       }
       manage_impersonation: {
@@ -1172,6 +1286,13 @@ export type Database = {
           "": unknown
         }
         Returns: string[]
+      }
+      start_impersonation: {
+        Args: {
+          p_real_user_id: string
+          p_target_user_id: string
+        }
+        Returns: string
       }
       svals: {
         Args: {

@@ -128,4 +128,22 @@ export class ImpersonationRepository extends BaseRepositoryBase<'profiles'> {
   }) {
     // Implementation here
   }
+
+  async getActiveSession(userId: string) {
+    const { data: session, error } = await this.client
+      .from('impersonation_sessions')
+      .select('*')
+      .or(`real_user_id.eq.${userId},target_user_id.eq.${userId}`)
+      .gte('expires_at', new Date().toISOString())
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .single();
+
+    if (error) {
+      console.error('Error fetching active session:', error);
+      return null;
+    }
+
+    return session;
+  }
 }
