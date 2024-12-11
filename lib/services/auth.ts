@@ -41,24 +41,46 @@ export class AuthService {
 
   static async create(): Promise<AuthService> {
     const supabase = await createClient()
+    log.debug('AuthService instance created')
     return new AuthService(supabase)
   }
 
   async signIn(email: string | undefined, password: string) {
     const requestId = crypto.randomUUID()
     
+    log.info('Sign in attempt started', {
+      requestId,
+      email,
+      hasPassword: !!password
+    })
+    
     try {
       // Check for undefined email first
       if (!email) {
+        log.warn('Sign in attempted without email', { requestId })
         throw new Error('Email is required')
       }
 
       const { data, error } = await this.supabase.auth.signInWithPassword({
-        email, // Now TypeScript knows email is string
+        email,
         password
       })
       
-      if (error) throw error
+      if (error) {
+        log.error('Sign in authentication failed', {
+          requestId,
+          error: error.message,
+          code: error.status,
+          email
+        })
+        throw error
+      }
+
+      log.info('Sign in successful, creating/updating profile', {
+        requestId,
+        userId: data.user.id,
+        email: data.user.email
+      })
 
       // Create profile if it doesn't exist
       const { data: profile, error: profileError } = await this.supabase
@@ -68,17 +90,17 @@ export class AuthService {
           email: email,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
-          is_active: true,  // Add default values
-          status: 'active' as Database['public']['Enums']['auth_status'] // Add proper type
+          is_active: true,
+          status: 'active' as Database['public']['Enums']['auth_status']
         }, {
           onConflict: 'id',
-          ignoreDuplicates: false // Change to false to ensure updates
+          ignoreDuplicates: false
         })
         .select()
         .single()
 
       if (profileError) {
-        log.error('Profile error', {
+        log.error('Profile creation/update failed', {
           requestId,
           error: profileError,
           userId: data.user.id
@@ -86,13 +108,21 @@ export class AuthService {
         throw profileError
       }
 
+      log.info('Authentication and profile setup complete', {
+        requestId,
+        userId: data.user.id,
+        email: data.user.email,
+        profileId: profile.id,
+        redirectTo: '/dashboard'
+      })
+
       return {
         user: data.user,
         profile,
         redirectTo: '/dashboard'
       }
     } catch (error) {
-      log.error('Sign in error', {
+      log.error('Sign in process failed', {
         requestId,
         error: error instanceof Error ? error.message : 'Unknown error',
         email
@@ -119,15 +149,61 @@ export class AuthService {
   }
 
   async getSession() {
-    const { data: { session }, error } = await this.supabase.auth.getSession()
-    if (error) throw error
-    if (!session) return null
+    const requestId = crypto.randomUUID()
+    
+    try {
+      log.debug('Fetching session', { requestId })
+      
+      const { data: { session }, error } = await this.supabase.auth.getSession()
+      if (error) {
+        log.error('Session fetch failed', {
+          requestId,
+          error: error.message
+        })
+        throw error
+      }
+      
+      if (!session) {
+        log.info('No active session found', { requestId })
+        return null
+      }
 
-    const profile = await this.profileRepo.findById(session.user.id)
-    return { session, profile }
+      log.debug('Fetching profile for session', {
+        requestId,
+        userId: session.user.id
+      })
+      
+      const profile = await this.profileRepo.findById(session.user.id)
+      
+      log.info('Session and profile retrieved', {
+        requestId,
+        userId: session.user.id,
+        hasProfile: !!profile
+      })
+      
+      return { session, profile }
+    } catch (error) {
+      log.error('Session retrieval failed', {
+        requestId,
+        error: error instanceof Error ? error.message : 'Unknown error'
+      })
+      throw error
+    }
   }
 
   async signOut() {
-    await this.supabase.auth.signOut()
+    const requestId = crypto.randomUUID()
+    
+    try {
+      log.info('Sign out initiated', { requestId })
+      await this.supabase.auth.signOut()
+      log.info('Sign out successful', { requestId })
+    } catch (error) {
+      log.error('Sign out failed', {
+        requestId,
+        error: error instanceof Error ? error.message : 'Unknown error'
+      })
+      throw error
+    }
   }
 }

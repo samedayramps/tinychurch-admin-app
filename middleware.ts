@@ -1,99 +1,56 @@
 // middleware.ts
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
-import { stackMiddlewares } from '@/lib/middleware/stack'
-import { loggingMiddleware } from '@/lib/middleware/core/logging'
-import { rateLimitMiddleware } from '@/lib/middleware/core/rateLimit'
-import { authMiddleware } from '@/lib/middleware/auth/auth'
-import { sessionMiddleware } from '@/lib/middleware/auth/session'
-import { impersonationMiddleware } from '@/lib/middleware/auth/impersonation'
-import { superadminMiddleware } from '@/lib/middleware/auth/superadmin'
-import { organizationMiddleware } from '@/lib/middleware/tenant/organization'
-import { featureMiddleware } from '@/lib/middleware/tenant/features'
-import { rbacMiddleware } from '@/lib/middleware/auth/rbac'
-import { errorMiddleware } from '@/lib/middleware/core/error'
+import { createMiddlewareClient } from '@/lib/utils/supabase/middleware'
+import { log } from '@/lib/utils/logger'
 
-export async function middleware(request: NextRequest) {
-  const response = NextResponse.next()
-
-  // Define public paths that should only use core middleware
-  const publicPaths = ['/sign-in', '/sign-up', '/forgot-password', '/accept-invite', '/auth/callback']
-  const isPublicPath = publicPaths.some(path => 
-    request.nextUrl.pathname === path ||
-    request.nextUrl.pathname.startsWith('/auth/')
-  )
-
-  // Core stack - always runs
-  const coreStack = stackMiddlewares([
-    errorMiddleware,
-    loggingMiddleware,
-    rateLimitMiddleware,
-  ])
-
-  // Create a next function for the final middleware
-  const finalNext = async (req: NextRequest, res: NextResponse) => res
-
-  // Auth stack - authentication and session management
-  const authStack = stackMiddlewares([
-    errorMiddleware,
-    loggingMiddleware,
-    rateLimitMiddleware,
-    authMiddleware,
-    sessionMiddleware,
-    impersonationMiddleware,
-  ])
-
-  // Organization stack - full context for org routes
-  const orgStack = stackMiddlewares([
-    errorMiddleware,
-    loggingMiddleware,
-    rateLimitMiddleware,
-    authMiddleware,
-    sessionMiddleware,
-    organizationMiddleware,
-    rbacMiddleware,
-    featureMiddleware,
-  ])
-
-  // Superadmin stack - special privileges
-  const superadminStack = stackMiddlewares([
-    errorMiddleware,
-    loggingMiddleware,
-    rateLimitMiddleware,
-    authMiddleware,
-    sessionMiddleware,
-    impersonationMiddleware,
-    superadminMiddleware,  // Sets x-is-superadmin
-  ])
-
+export default async function middleware(req: NextRequest) {
+  const requestId = crypto.randomUUID()
+  const path = req.nextUrl.pathname
+  
   try {
-    // For public paths, only use core middleware
-    if (isPublicPath) {
-      return await coreStack(request, response, finalNext)
+    log.debug('Middleware started', {
+      requestId,
+      path,
+      method: req.method
+    })
+
+    const { supabase, response } = createMiddlewareClient(req)
+
+    // Refresh session if it exists
+    const { data: { session }, error } = await supabase.auth.getSession()
+    
+    if (error) {
+      log.error('Session error in middleware', {
+        requestId,
+        error: error.message,
+        path
+      })
     }
 
-    // Route-specific middleware selection
-    if (request.nextUrl.pathname.startsWith('/superadmin')) {
-      if (request.nextUrl.pathname.startsWith('/superadmin/messaging')) {
-        return await superadminStack(request, response, finalNext)
-      }
-      return await superadminStack(request, response, finalNext)
+    if (session) {
+      log.debug('Active session found', {
+        requestId,
+        userId: session.user.id,
+        path
+      })
     }
 
-    if (request.nextUrl.pathname.startsWith('/org/')) {
-      return await orgStack(request, response, finalNext)
-    }
-
-    // Default auth stack for protected routes
-    return await authStack(request, response, finalNext)
+    return response
   } catch (error) {
-    console.error('Middleware error:', error)
-    return NextResponse.redirect(new URL('/error', request.url))
+    log.error('Unhandled middleware error', {
+      requestId,
+      error: error instanceof Error ? error.message : 'Unknown error',
+      path
+    })
+    return NextResponse.next()
   }
 }
 
+// Configure middleware matching
 export const config = {
   matcher: [
-    '/((?!api|_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+    // Match all paths except static files and specific API routes
+    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
   ],
 }
