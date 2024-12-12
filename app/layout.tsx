@@ -3,9 +3,8 @@ import { ThemeProvider } from '@/components/theme-provider'
 import { AuthProvider } from '@/providers/auth-provider'
 import './globals.css'
 import { Toaster } from "@/components/ui/toaster"
-import { ImpersonationProvider } from '@/lib/contexts/impersonation-context'
-import { ImpersonationBorder } from '@/components/impersonation/border'
 import { AuthDebug } from '@/components/debug/auth-status'
+import { QueryProvider } from '@/providers/query-provider'
 
 export const metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || 'https://tinychurch.app'),
@@ -37,13 +36,12 @@ export default async function RootLayout({
           disableTransitionOnChange
         >
           <AuthProvider>
-            <ImpersonationProvider>
-              <ImpersonationBorder />
+            <QueryProvider>
               <main className="min-h-screen">
                 {children}
               </main>
               <AuthDebug />
-            </ImpersonationProvider>
+            </QueryProvider>
           </AuthProvider>
           <Toaster />
         </ThemeProvider>

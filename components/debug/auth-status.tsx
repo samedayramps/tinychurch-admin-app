@@ -1,31 +1,26 @@
 'use client'
 
-import { createClient } from '@/lib/utils/supabase/client'
 import { useEffect, useState } from 'react'
+import { createClient } from '@/lib/utils/supabase/client'
 import { log } from '@/lib/utils/logger'
 import { useAuth } from '@/hooks/use-auth'
+import { useAuthStatus } from '@/lib/hooks/use-auth-status'
 
 export function AuthDebug() {
   const { user, loading } = useAuth()
+  const { data: authStatus, isLoading: authStatusLoading } = useAuthStatus()
   const [debugInfo, setDebugInfo] = useState<{
     email?: string
     role?: string
     isSuperadmin?: boolean
     isLoading: boolean
     userId?: string
-    impersonation?: {
-      isImpersonating: boolean
-      realUserId: string | null
-    }
   }>({
     isLoading: true
   })
 
   useEffect(() => {
-    // Don't try to load debug info until auth is initialized
-    if (loading) {
-      return
-    }
+    if (loading || authStatusLoading) return
 
     async function loadDebugInfo() {
       const requestId = crypto.randomUUID()
@@ -33,7 +28,7 @@ export function AuthDebug() {
       
       log.info('Loading auth debug info', { 
         requestId,
-        hasUser: !!user
+        hasUser: !!user,
       })
       
       try {
@@ -46,12 +41,7 @@ export function AuthDebug() {
           return
         }
 
-        log.debug('Fetching profile info for debug', {
-          requestId,
-          userId: user.id
-        })
-
-        // Get profile info using same logic as getSuperAdminStatus
+        // Get profile info
         const { data: profile, error: profileError } = await supabase
           .from('profiles')
           .select('is_superadmin, email')
@@ -59,72 +49,16 @@ export function AuthDebug() {
           .single()
 
         if (profileError) {
-          log.error('Failed to fetch profile for debug', {
-            requestId,
-            userId: user.id,
-            error: profileError.message
-          })
           throw profileError
         }
 
-        // Only fetch organization role if not a superadmin
-        let orgRole = 'No org role'
-        if (!profile.is_superadmin) {
-          log.debug('Fetching organization role for debug', {
-            requestId,
-            userId: user.id
-          })
-
-          const { data: orgMember, error: orgError } = await supabase
-            .from('organization_members')
-            .select('role')
-            .eq('user_id', user.id)
-            .single()
-
-          if (orgError && !orgError.message.includes('No rows found')) {
-            log.error('Failed to fetch org role for debug', {
-              requestId,
-              userId: user.id,
-              error: orgError.message
-            })
-          } else if (orgMember) {
-            orgRole = orgMember.role
-          }
-        } else {
-          log.debug('Skipping org role fetch for superadmin', {
-            requestId,
-            userId: user.id
-          })
-        }
-
-        log.debug('Checking impersonation status for debug', { requestId })
-        const [isImpersonating, realUserId] = await Promise.all([
-          checkImpersonationStatus(),
-          getRealUserId()
-        ])
-
-        const debugData = {
+        setDebugInfo({
           email: profile?.email || user.email,
-          role: profile.is_superadmin ? 'superadmin' : orgRole,
           isSuperadmin: !!profile?.is_superadmin,
           isLoading: false,
           userId: user.id,
-          impersonation: {
-            isImpersonating,
-            realUserId
-          }
-        }
-
-        log.info('Auth debug info loaded', {
-          requestId,
-          userId: user.id,
-          email: debugData.email,
-          role: debugData.role,
-          isSuperadmin: debugData.isSuperadmin,
-          isImpersonating
         })
 
-        setDebugInfo(debugData)
       } catch (error) {
         log.error('Failed to load debug info', {
           requestId,
@@ -138,7 +72,7 @@ export function AuthDebug() {
     }
 
     loadDebugInfo()
-  }, [user, loading]) // Add dependencies to re-run when auth state changes
+  }, [user, loading, authStatusLoading])
 
   if (process.env.NODE_ENV === 'production') {
     return null
@@ -153,50 +87,13 @@ export function AuthDebug() {
   }
 
   return (
-    <div className="fixed bottom-4 right-4 z-50 bg-black/80 text-white p-4 rounded-lg text-sm font-mono">
-      <div className="space-y-1">
+    <div className="fixed bottom-4 right-4 z-50 bg-black/80 text-white p-4 rounded-lg text-sm font-mono max-w-xl overflow-auto max-h-[80vh]">
+      <div className="space-y-2">
+        <div className="font-bold text-yellow-400">Auth Debug Info</div>
         <div>Email: {debugInfo.email}</div>
-        <div>Role: {debugInfo.role}</div>
+        <div>User ID: {debugInfo.userId}</div>
         <div>Superadmin: {debugInfo.isSuperadmin ? 'Yes' : 'No'}</div>
-        {debugInfo.impersonation?.isImpersonating && (
-          <div>
-            <div>Impersonating: Yes</div>
-            <div>Real User ID: {debugInfo.impersonation.realUserId}</div>
-          </div>
-        )}
       </div>
     </div>
   )
-}
-
-async function checkImpersonationStatus() {
-  const requestId = crypto.randomUUID()
-  try {
-    log.debug('Checking impersonation status', { requestId })
-    const response = await fetch('/api/auth/impersonation-status')
-    const data = await response.json()
-    return data.isImpersonating
-  } catch (error) {
-    log.error('Failed to check impersonation status', {
-      requestId,
-      error: error instanceof Error ? error.message : 'Unknown error'
-    })
-    return false
-  }
-}
-
-async function getRealUserId() {
-  const requestId = crypto.randomUUID()
-  try {
-    log.debug('Getting real user ID', { requestId })
-    const response = await fetch('/api/auth/impersonation-status')
-    const data = await response.json()
-    return data.realUserId
-  } catch (error) {
-    log.error('Failed to get real user ID', {
-      requestId,
-      error: error instanceof Error ? error.message : 'Unknown error'
-    })
-    return null
-  }
 } 

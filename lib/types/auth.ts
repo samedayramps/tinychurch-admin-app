@@ -1,4 +1,5 @@
 import type { Database } from '@/database.types'
+import type { User } from '@supabase/supabase-js'
 
 export type UserRole = 'superadmin' | 'admin' | 'staff' | 'ministry_leader' | 'member' | 'visitor'
 
@@ -50,15 +51,6 @@ export interface Organization {
   settings?: Record<string, any>
 }
 
-export interface ImpersonationStatus {
-  isImpersonating: boolean
-  impersonatedUserId: string | null
-}
-
-export interface ImpersonationError {
-  error: string
-}
-
 export interface UserActivityLog {
   id: string
   user_id: string
@@ -69,4 +61,8 @@ export interface UserActivityLog {
   user_agent?: string | null
   created_at: string
   organization_id?: string | null
+}
+
+export interface AuthStatus {
+  user: User | null
 } 

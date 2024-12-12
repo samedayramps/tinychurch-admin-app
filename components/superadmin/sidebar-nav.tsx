@@ -6,7 +6,6 @@ import { SidebarItem } from "@/components/ui/sidebar/sidebar-item"
 import { SidebarSection } from "@/components/ui/sidebar/sidebar-section"
 import { SidebarFooter } from "@/components/ui/sidebar/sidebar-footer"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { ImpersonationUserList } from "@/components/impersonation/user-list"
 import type { Profile } from "@/lib/types/auth"
 import { superAdminNavItems } from "@/lib/config/navigation"
 
@@ -44,10 +43,6 @@ export function SuperAdminSidebarNav({ profile }: SuperAdminSidebarNavProps) {
           ))}
         </ScrollArea>
 
-        <div className="px-4 py-2">
-          <ImpersonationUserList />
-        </div>
-        
         <SidebarFooter profile={profile} />
       </div>
     </Sidebar>

@@ -13,7 +13,6 @@ A comprehensive church management system built with Next.js and Supabase, design
 ### Advanced Authentication & Authorization
 - Role-based access control (Admin, Staff, Ministry Leader, Member, Visitor)
 - Super admin capabilities for platform management
-- User impersonation for support and debugging
 - Secure invitation system for new members
 
 ### Comprehensive Audit System

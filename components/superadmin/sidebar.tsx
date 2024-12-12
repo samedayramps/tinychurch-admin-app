@@ -21,7 +21,6 @@ import {
 import { usePathname } from 'next/navigation'
 import Link from 'next/link'
 import type { Profile } from '@/lib/types/auth'
-import { ImpersonationUserList } from '@/components/impersonation/user-list'
 
 interface SuperAdminSidebarProps {
   profile: Profile
@@ -59,8 +58,6 @@ export function SuperAdminSidebar({ profile }: SuperAdminSidebarProps) {
         </SidebarContent>
         
         <SidebarFooter>
-          {/* Impersonation controls in footer */}
-          <ImpersonationUserList />
         </SidebarFooter>
       </Sidebar>
     </SidebarProvider>

@@ -361,33 +361,6 @@ export type Database = {
           },
         ]
       }
-      impersonation_sessions: {
-        Row: {
-          created_at: string
-          expires_at: string
-          id: string
-          metadata: Json | null
-          real_user_id: string
-          target_user_id: string
-        }
-        Insert: {
-          created_at?: string
-          expires_at: string
-          id?: string
-          metadata?: Json | null
-          real_user_id: string
-          target_user_id: string
-        }
-        Update: {
-          created_at?: string
-          expires_at?: string
-          id?: string
-          metadata?: Json | null
-          real_user_id?: string
-          target_user_id?: string
-        }
-        Relationships: []
-      }
       message_templates: {
         Row: {
           body: string
@@ -1028,32 +1001,6 @@ export type Database = {
         }
         Returns: Record<string, unknown>[]
       }
-      end_impersonation: {
-        Args: {
-          p_session_id: string
-        }
-        Returns: boolean
-      }
-      get_active_impersonation: {
-        Args: {
-          p_user_id: string
-        }
-        Returns: {
-          session_id: string
-          real_user_id: string
-          target_user_id: string
-        }[]
-      }
-      get_impersonatable_users: {
-        Args: Record<PropertyKey, never>
-        Returns: {
-          id: string
-          email: string
-          full_name: string
-          is_superadmin: boolean
-          organization_members: Json
-        }[]
-      }
       get_user_organization: {
         Args: {
           user_id: string
@@ -1250,13 +1197,6 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: boolean
       }
-      manage_impersonation: {
-        Args: {
-          target_user_id: string
-          action: string
-        }
-        Returns: Json
-      }
       process_join_request: {
         Args: {
           p_request_id: string
@@ -1286,13 +1226,6 @@ export type Database = {
           "": unknown
         }
         Returns: string[]
-      }
-      start_impersonation: {
-        Args: {
-          p_real_user_id: string
-          p_target_user_id: string
-        }
-        Returns: string
       }
       svals: {
         Args: {

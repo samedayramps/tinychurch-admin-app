@@ -11,7 +11,6 @@ import {
   NavigationMenuContent
 } from '@/components/ui/navigation-menu'
 import { Breadcrumbs } from './breadcrumbs'
-import { useImpersonationStatus } from '@/lib/hooks/use-impersonation'
 
 interface NavigationProps {
   className?: string
@@ -19,12 +18,10 @@ interface NavigationProps {
 
 export function Navigation({ className }: NavigationProps) {
   const pathname = usePathname()
-  const { isImpersonating } = useImpersonationStatus()
   
   return (
     <div className={cn(
       "sticky top-0 z-40 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60",
-      isImpersonating && "mt-12",
       className
     )}>
       <div className="container flex h-14 items-center">

@@ -1,13 +1,12 @@
 import { cn } from '@/lib/utils/cn'
-import { useImpersonationStatus } from '@/lib/hooks/use-impersonation'
+import { useAuthStatus } from '@/lib/hooks/use-auth-status'
 
 export function Navbar() {
-  const { isImpersonating } = useImpersonationStatus()
+  const { data: authStatus } = useAuthStatus()
   
   return (
     <nav className={cn(
-      "sticky top-0 z-40 border-b bg-background/95 backdrop-blur",
-      isImpersonating && "mt-12" // Add space for impersonation banner
+      "sticky top-0 z-40 border-b bg-background/95 backdrop-blur"
     )}>
       {/* Your existing navbar content */}
     </nav>
